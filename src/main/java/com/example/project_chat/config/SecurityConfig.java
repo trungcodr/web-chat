@@ -46,6 +46,10 @@ public class SecurityConfig {
                                         "/api/auth/register",
                                         "/api/auth/register/verify",
                                         "/api/auth/register/password",
+                                        "/api/auth/forgot-password",
+                                        "/api/auth/verify-reset-otp",
+                                        "/api/auth/reset-password",
+                                        "/api/auth/refresh-token",
                                         "/swagger-ui/**",
                                         "/v3/api-docs/**").permitAll()
                                 .anyRequest().authenticated()

@@ -1,9 +1,7 @@
 package com.example.project_chat.service.impl;
 
 import com.example.project_chat.common.exception.BadRequestException;
-import com.example.project_chat.dto.CreatePasswordRequestDTO;
-import com.example.project_chat.dto.RegisterRequestDTO;
-import com.example.project_chat.dto.VerifyOtpRequestDTO;
+import com.example.project_chat.dto.*;
 import com.example.project_chat.dto.login.LoginRequestDTO;
 import com.example.project_chat.dto.login.LoginResponseDTO;
 import com.example.project_chat.entity.Role;
@@ -12,6 +10,7 @@ import com.example.project_chat.entity.UserRole;
 import com.example.project_chat.repository.RoleRepository;
 import com.example.project_chat.repository.UserRepository;
 import com.example.project_chat.repository.UserRoleRepository;
+import com.example.project_chat.security.CustomUserDetailsService;
 import com.example.project_chat.security.JwtTokenProvider;
 import com.example.project_chat.service.AuthService;
 import com.example.project_chat.service.EmailService;
@@ -23,6 +22,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,8 +40,9 @@ public class AuthServiceImpl implements AuthService {
     private final EmailService emailService;
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
+    private final CustomUserDetailsService customUserDetailsService;
 
-    public AuthServiceImpl(UserRepository userRepository, RoleRepository roleRepository, UserRoleRepository userRoleRepository, PasswordEncoder passwordEncoder, RedisTemplate<String, Object> redisTemplate, EmailService emailService, AuthenticationManager authenticationManager, JwtTokenProvider jwtTokenProvider) {
+    public AuthServiceImpl(UserRepository userRepository, RoleRepository roleRepository, UserRoleRepository userRoleRepository, PasswordEncoder passwordEncoder, RedisTemplate<String, Object> redisTemplate, EmailService emailService, AuthenticationManager authenticationManager, JwtTokenProvider jwtTokenProvider, CustomUserDetailsService customUserDetailsService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.userRoleRepository = userRoleRepository;
@@ -50,6 +51,7 @@ public class AuthServiceImpl implements AuthService {
         this.emailService = emailService;
         this.authenticationManager = authenticationManager;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.customUserDetailsService = customUserDetailsService;
     }
 
     @Value("${jwt.refresh-token-expiration-ms}")
@@ -57,6 +59,8 @@ public class AuthServiceImpl implements AuthService {
     private static final Logger logger = LoggerFactory.getLogger(AuthServiceImpl.class);
     private static final String OTP_PREFIX = "otp:";
     private static final String REFRESH_TOKEN_PREFIX = "refreshToken:";
+    private static final String RESET_OTP_PREFIX = "otp:reset:";
+
     @Override
     public void requestRegistration(RegisterRequestDTO registerRequestDTO) {
         System.out.println("1. Bắt đầu xử lý đăng ký cho email: " + registerRequestDTO.getEmail());
@@ -169,6 +173,75 @@ public class AuthServiceImpl implements AuthService {
         } catch (Exception e) {
             logger.error("Loi kho xoa refresh token khoi redis cho {}: {}", email, e.getMessage());
         }
+    }
+
+    @Override
+    public void requestPasswordReset(ForgotPasswordRequestDTO forgotPasswordRequestDTO) {
+        User user = userRepository.findByEmail(forgotPasswordRequestDTO.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay nguoi dung voi email: " + forgotPasswordRequestDTO.getEmail()));
+
+        // 2. Tạo OTP, lưu vào Redis với prefix khác
+        String otp = generateOtp();
+        String redisKey = RESET_OTP_PREFIX + forgotPasswordRequestDTO.getEmail();
+        redisTemplate.opsForValue().set(redisKey, otp, 5, TimeUnit.MINUTES);
+
+        // 3. Gửi email chứa OTP
+        // TODO: Tạo một mẫu email khác cho việc reset mật khẩu
+        emailService.sendOtpEmail(forgotPasswordRequestDTO.getEmail(), otp);
+        logger.info("Da gui OTP reset mat khau cho {}.", forgotPasswordRequestDTO.getEmail());
+    }
+
+    @Override
+    public void verifyOtpForPasswordReset(VerifyOtpRequestDTO verifyOtpRequestDTO) {
+        String redisKey = RESET_OTP_PREFIX + verifyOtpRequestDTO.getEmail();
+        String cachedOtp = (String) redisTemplate.opsForValue().get(redisKey);
+
+        if (cachedOtp == null || !cachedOtp.equals(verifyOtpRequestDTO.getOtp())) {
+            throw new BadRequestException("OTP không hợp lệ hoặc đã hết hạn!");
+        }
+    }
+
+    @Override
+    @Transactional
+    public void resetPassword(ResetPasswordRequestDTO resetPasswordRequestDTO) {
+        String redisKey = RESET_OTP_PREFIX + resetPasswordRequestDTO.getEmail();
+        String cachedOtp = (String) redisTemplate.opsForValue().get(redisKey);
+        if (cachedOtp == null || !cachedOtp.equals(resetPasswordRequestDTO.getOtp())) {
+            throw new BadRequestException("OTP khong hop le hoac da het han!");
+        }
+
+        if (!resetPasswordRequestDTO.getNewPassword().equals(resetPasswordRequestDTO.getNewRepeatPassword())) {
+            throw new BadRequestException("Mật khau xac nhan khong khop!");
+        }
+
+        User user = userRepository.findByEmail(resetPasswordRequestDTO.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("Khong tim thay nguoi dung voi email: " + resetPasswordRequestDTO.getEmail()));
+
+        user.setPassword(passwordEncoder.encode(resetPasswordRequestDTO.getNewPassword()));
+        userRepository.save(user);
+
+        redisTemplate.delete(redisKey);
+        logger.info("Nguoi dung {} da dat lai mat khau thanh cong.", resetPasswordRequestDTO.getEmail());
+
+    }
+
+    @Override
+    public RefreshTokenResponseDTO refreshToken(RefreshTokenRequestDTO refreshTokenRequestDTO) {
+        String requestRefreshToken = refreshTokenRequestDTO.getRefreshToken();
+        if (!jwtTokenProvider.validateToken(requestRefreshToken)) {
+            throw new BadRequestException("Refresh token khong hop le hoac da het han!");
+        }
+        String email = jwtTokenProvider.getUsernameFromToken(requestRefreshToken);
+        String redisKey = REFRESH_TOKEN_PREFIX + email;
+        String tokenFromRedis = (String) redisTemplate.opsForValue().get(redisKey);
+        if (tokenFromRedis == null || !tokenFromRedis.equals(requestRefreshToken)) {
+            throw new BadRequestException("Refresh token khong ton tai trong he thong hoac da bi thu hoi!");
+        }
+        UserDetails userDetails = customUserDetailsService.loadUserByUsername(email);
+        Authentication authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+        String newAccessToken = jwtTokenProvider.generateAccessToken(authentication);
+        logger.info("Da lam moi access token thanh cong cho {}.", email);
+        return new RefreshTokenResponseDTO(newAccessToken);
     }
 
     private String generateOtp() {

@@ -1,8 +1,6 @@
 package com.example.project_chat.controller;
 
-import com.example.project_chat.dto.CreatePasswordRequestDTO;
-import com.example.project_chat.dto.RegisterRequestDTO;
-import com.example.project_chat.dto.VerifyOtpRequestDTO;
+import com.example.project_chat.dto.*;
 import com.example.project_chat.dto.login.LoginRequestDTO;
 import com.example.project_chat.dto.login.LoginResponseDTO;
 import com.example.project_chat.dto.response.ApiResponse;
@@ -72,4 +70,45 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<?>> forgotPassword(@Valid @RequestBody ForgotPasswordRequestDTO requestDTO) {
+        authService.requestPasswordReset(requestDTO);
+        ApiResponse<?> response = new ApiResponse<>(
+                HttpStatus.OK.value(),
+                "OTP de reset mat khau da duoc gui!",
+                null);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/verify-reset-otp")
+    public ResponseEntity<ApiResponse<?>> verifyRequestOtp(@Valid @RequestBody VerifyOtpRequestDTO requestDTO) {
+        authService.verifyOtpForPasswordReset(requestDTO);
+        ApiResponse<?> response = new ApiResponse<>(
+                HttpStatus.OK.value(),
+                "Xac thuc OTP thanh cong!",
+                null);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<?>> resetPassword(@Valid @RequestBody ResetPasswordRequestDTO requestDTO) {
+        authService.resetPassword(requestDTO);
+        ApiResponse<?> response = new ApiResponse<>(
+          HttpStatus.OK.value(),
+          "Dat lai mat khau thanh cong!",
+                null
+        );
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/refresh-token")
+    public ResponseEntity<ApiResponse<?>> refreshToken(@Valid @RequestBody RefreshTokenRequestDTO requestDTO) {
+        RefreshTokenResponseDTO refreshTokenResponseDTO = authService.refreshToken(requestDTO);
+        ApiResponse<RefreshTokenResponseDTO> response = new ApiResponse<>(
+                HttpStatus.OK.value(),
+                "Lam moi token thanh cong!",
+                refreshTokenResponseDTO
+        );
+        return ResponseEntity.ok(response);
+    }
 }
