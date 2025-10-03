@@ -1,4 +1,4 @@
-package com.example.project_chat.dto;
+package com.example.project_chat.dto.auth;
 
 public class RefreshTokenResponseDTO {
     private String accessToken;

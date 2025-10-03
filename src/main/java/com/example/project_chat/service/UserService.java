@@ -1,6 +1,6 @@
 package com.example.project_chat.service;
 
-import com.example.project_chat.dto.UpdateProfileRequestDTO;
+import com.example.project_chat.dto.friend.UpdateProfileRequestDTO;
 import com.example.project_chat.dto.response.UserResponseDTO;
 
 public interface UserService {

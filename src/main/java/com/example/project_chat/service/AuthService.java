@@ -1,6 +1,6 @@
 package com.example.project_chat.service;
 
-import com.example.project_chat.dto.*;
+import com.example.project_chat.dto.auth.*;
 import com.example.project_chat.dto.login.LoginRequestDTO;
 import com.example.project_chat.dto.login.LoginResponseDTO;
 import org.springframework.stereotype.Service;

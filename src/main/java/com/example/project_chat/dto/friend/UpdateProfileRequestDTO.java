@@ -1,4 +1,4 @@
-package com.example.project_chat.dto;
+package com.example.project_chat.dto.friend;
 
 import com.example.project_chat.common.constants.Gender;
 import org.springframework.format.annotation.DateTimeFormat;

@@ -1,5 +1,6 @@
 package com.example.project_chat.mapper;
 
+import com.example.project_chat.dto.friend.FriendInfoDTO;
 import com.example.project_chat.dto.response.UserResponseDTO;
 import com.example.project_chat.entity.User;
 
@@ -16,5 +17,17 @@ public class UserMapper {
         userResponseDTO.setDateOfBirth(user.getDateOfBirth());
         userResponseDTO.setGender(user.getGender());
         return userResponseDTO;
+    }
+
+    public static FriendInfoDTO toFriendInfoDTO(User user) {
+        if (user == null) {
+            return null;
+        }
+
+        FriendInfoDTO dto = new FriendInfoDTO();
+        dto.setDisplayName(user.getDisplayName());
+        dto.setAvatarUrl(user.getAvatarUrl());
+
+        return dto;
     }
 }

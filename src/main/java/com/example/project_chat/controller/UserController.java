@@ -1,6 +1,6 @@
 package com.example.project_chat.controller;
 
-import com.example.project_chat.dto.UpdateProfileRequestDTO;
+import com.example.project_chat.dto.friend.UpdateProfileRequestDTO;
 import com.example.project_chat.dto.response.ApiResponse;
 import com.example.project_chat.dto.response.UserResponseDTO;
 import com.example.project_chat.service.UserService;

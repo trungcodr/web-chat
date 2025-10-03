@@ -1,7 +1,7 @@
 package com.example.project_chat.service.impl;
 
 import com.example.project_chat.common.exception.BadRequestException;
-import com.example.project_chat.dto.*;
+import com.example.project_chat.dto.auth.*;
 import com.example.project_chat.dto.login.LoginRequestDTO;
 import com.example.project_chat.dto.login.LoginResponseDTO;
 import com.example.project_chat.entity.Role;
