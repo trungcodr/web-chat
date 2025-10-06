@@ -1,5 +1,6 @@
 package com.example.project_chat.mapper;
 
+import com.example.project_chat.dto.friend.FriendResponseDTO;
 import com.example.project_chat.dto.response.FriendRequestResponseDTO;
 import com.example.project_chat.dto.response.SentFriendRequestResponseDTO;
 import com.example.project_chat.entity.Friend;
@@ -38,6 +39,21 @@ public class FriendMapper {
             dto.setReceiverDisplayName(receiver.getDisplayName());
             dto.setReceiverAvatarUrl(receiver.getAvatarUrl());
         }
+        return dto;
+    }
+
+    public FriendResponseDTO toFriendResponseDTO(Friend friendRelationship) {
+        FriendResponseDTO dto = new FriendResponseDTO();
+        dto.setId(friendRelationship.getId()); // Gán ID của mối quan hệ
+
+        // Lấy thông tin của người bạn từ CSDL
+        userRepository.findById(friendRelationship.getFriendId()).ifPresent(user -> {
+            dto.setFriendId(user.getId()); // Gán ID của người bạn
+            dto.setDisplayName(user.getDisplayName());
+
+            dto.setAvatarUrl(user.getAvatarUrl());
+        });
+
         return dto;
     }
 }

@@ -1,6 +1,6 @@
 package com.example.project_chat.controller;
 
-import com.example.project_chat.dto.friend.FriendInfoDTO;
+import com.example.project_chat.dto.friend.FriendResponseDTO;
 import com.example.project_chat.dto.friend.FriendRequestDTO;
 import com.example.project_chat.dto.friend.UpdateFriendRequestDTO;
 import com.example.project_chat.dto.response.ApiResponse;
@@ -71,9 +71,9 @@ public class FriendController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<FriendInfoDTO>>> getFriendList() {
-        List<FriendInfoDTO> friendList = friendService.getFriendList();
-        ApiResponse<List<FriendInfoDTO>> response = new ApiResponse<>(
+    public ResponseEntity<ApiResponse<List<FriendResponseDTO>>> getFriendList() {
+        List<FriendResponseDTO> friendList = friendService.getFriendList();
+        ApiResponse<List<FriendResponseDTO>> response = new ApiResponse<>(
                 HttpStatus.OK.value(),
                 "Lay danh sach ban be thanh cong!",
                 friendList

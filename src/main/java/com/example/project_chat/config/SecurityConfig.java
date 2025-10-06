@@ -51,7 +51,8 @@ public class SecurityConfig {
                                         "/api/auth/reset-password",
                                         "/api/auth/refresh-token",
                                         "/swagger-ui/**",
-                                        "/v3/api-docs/**").permitAll()
+                                        "/v3/api-docs/**",
+                                        "/ws/**").permitAll()
                                 .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

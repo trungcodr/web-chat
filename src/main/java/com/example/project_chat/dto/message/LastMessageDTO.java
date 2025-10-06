@@ -5,9 +5,28 @@ import com.example.project_chat.common.constants.MessageType;
 import java.util.Date;
 
 public class LastMessageDTO {
+    private Integer senderId;
+    private boolean isYou;
     private String content;
     private MessageType type;
     private Date createdAt;
+
+
+    public Integer getSenderId() {
+        return senderId;
+    }
+
+    public void setSenderId(Integer senderId) {
+        this.senderId = senderId;
+    }
+
+    public boolean isYou() {
+        return isYou;
+    }
+
+    public void setYou(boolean you) {
+        isYou = you;
+    }
 
     public String getContent() {
         return content;

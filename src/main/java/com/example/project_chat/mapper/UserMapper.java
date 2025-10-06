@@ -1,6 +1,6 @@
 package com.example.project_chat.mapper;
 
-import com.example.project_chat.dto.friend.FriendInfoDTO;
+import com.example.project_chat.dto.friend.FriendResponseDTO;
 import com.example.project_chat.dto.response.UserResponseDTO;
 import com.example.project_chat.entity.User;
 
@@ -19,15 +19,13 @@ public class UserMapper {
         return userResponseDTO;
     }
 
-    public static FriendInfoDTO toFriendInfoDTO(User user) {
+    public static FriendResponseDTO toFriendInfoDTO(User user) {
         if (user == null) {
             return null;
         }
-
-        FriendInfoDTO dto = new FriendInfoDTO();
+        FriendResponseDTO dto = new FriendResponseDTO();
         dto.setDisplayName(user.getDisplayName());
         dto.setAvatarUrl(user.getAvatarUrl());
-
         return dto;
     }
 }

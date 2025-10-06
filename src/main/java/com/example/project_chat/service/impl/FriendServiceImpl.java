@@ -3,7 +3,7 @@ package com.example.project_chat.service.impl;
 import com.example.project_chat.common.constants.FriendStatus;
 import com.example.project_chat.common.exception.BadRequestException;
 import com.example.project_chat.common.exception.ResourceNotFoundException;
-import com.example.project_chat.dto.friend.FriendInfoDTO;
+import com.example.project_chat.dto.friend.FriendResponseDTO;
 import com.example.project_chat.dto.friend.FriendRequestDTO;
 import com.example.project_chat.dto.friend.UpdateFriendRequestDTO;
 import com.example.project_chat.dto.response.FriendRequestResponseDTO;
@@ -11,7 +11,6 @@ import com.example.project_chat.dto.response.SentFriendRequestResponseDTO;
 import com.example.project_chat.entity.Friend;
 import com.example.project_chat.entity.User;
 import com.example.project_chat.mapper.FriendMapper;
-import com.example.project_chat.mapper.UserMapper;
 import com.example.project_chat.repository.FriendRepository;
 import com.example.project_chat.repository.UserRepository;
 import com.example.project_chat.service.FriendService;
@@ -116,9 +115,9 @@ public class FriendServiceImpl implements FriendService {
     public List<SentFriendRequestResponseDTO> getSentFriendRequests() {
         String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         User currentUser = userRepository.findByEmail(currentUserEmail)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng hiện tại."));
+                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung hien tai."));
 
-        // 2. Tìm tất cả các lời mời PENDING do người dùng này gửi đi
+        // tim tat ca loi moi do nguoi dung nay da gui di
         List<Friend> sentRequests = friendRepository.findByUserIdAndStatus(currentUser.getId(), FriendStatus.PENDING);
 
         return sentRequests.stream()
@@ -127,18 +126,15 @@ public class FriendServiceImpl implements FriendService {
     }
 
     @Override
-    public List<FriendInfoDTO> getFriendList() {
+    public List<FriendResponseDTO> getFriendList() {
         String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         User currentUser = userRepository.findByEmail(currentUserEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung hien tai."));
-        List<Friend> acceptedRelationships = friendRepository.findByUserIdAndStatus(currentUser.getId(), FriendStatus.ACCEPTED);
-        List<Integer> friendIds = acceptedRelationships.stream()
-                .map(Friend::getFriendId)
-                .collect(Collectors.toList());
-        List<User> friends = userRepository.findAllById(friendIds);
 
-        return friends.stream()
-                .map(UserMapper::toFriendInfoDTO)
+        List<Friend> acceptedRelationships = friendRepository.findByUserIdAndStatus(currentUser.getId(), FriendStatus.ACCEPTED);
+
+        return acceptedRelationships.stream()
+                .map(friendMapper::toFriendResponseDTO)
                 .collect(Collectors.toList());
     }
 }
