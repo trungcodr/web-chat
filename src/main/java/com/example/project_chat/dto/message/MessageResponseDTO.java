@@ -20,6 +20,7 @@ public class MessageResponseDTO {
     private BigDecimal latitude;
     private BigDecimal longitude;
     private Integer replyToId;
+    private ReplyInfoDTO replyInfo;
     private Date createdAt;
     private MessageStatus status;
     public Integer getId() {
@@ -116,6 +117,14 @@ public class MessageResponseDTO {
 
     public void setReplyToId(Integer replyToId) {
         this.replyToId = replyToId;
+    }
+
+    public ReplyInfoDTO getReplyInfo() {
+        return replyInfo;
+    }
+
+    public void setReplyInfo(ReplyInfoDTO replyInfo) {
+        this.replyInfo = replyInfo;
     }
 
     public Date getCreatedAt() {

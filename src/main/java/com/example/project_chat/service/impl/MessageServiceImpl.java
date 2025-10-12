@@ -83,7 +83,17 @@ public class MessageServiceImpl implements MessageService {
         message.setConversationId(conversation.getId());
         message.setSenderId(sender.getId());
         message.setType(requestDTO.getType());
-        message.setReplyToId(requestDTO.getReplyToId());
+        // Kiểm tra và gán replyToId
+        if (requestDTO.getReplyToId() != null) {
+            // Kiểm tra xem tin nhắn được trả lời có tồn tại và thuộc cùng cuộc trò chuyện không
+            Message repliedMessage = messageRepository.findById(requestDTO.getReplyToId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay tin nhan duoc tra loi."));
+
+            if (!repliedMessage.getConversationId().equals(conversation.getId())) {
+                throw new BadRequestException("Khong the tra loi tin nhan tu mot cuoc tro chuyen khac.");
+            }
+            message.setReplyToId(requestDTO.getReplyToId());
+        }
         message.setStatus(MessageStatus.SENT);
         //xu ly loai tin nhan text , image ,file,....
         switch (requestDTO.getType()) {
@@ -95,7 +105,6 @@ public class MessageServiceImpl implements MessageService {
                 break;
             case IMAGE:
             case FILE:
-            case VOICE:
                 MultipartFile file = requestDTO.getFile();
                 if (file == null || file.isEmpty()) {
                     throw new BadRequestException("File khong duoc de trong!.");
@@ -195,10 +204,10 @@ public class MessageServiceImpl implements MessageService {
     public Page<MessageResponseDTO> searchMessagesInConversation(Integer conversationId, String keyword, Pageable pageable) {
         String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         User currentUser = userRepository.findByEmail(currentUserEmail)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng hiện tại."));
+                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung hien tai!"));
         boolean isMember = conversationMemberRepository.existsByConversationIdAndUserId(conversationId, currentUser.getId());
         if (!isMember) {
-            throw new AccessDeniedException("Bạn không có quyền truy cập vào cuộc trò chuyện này.");
+            throw new AccessDeniedException("Ban khong co quyen truy cap vao cuoc tro chuyen nay!");
         }
 
         // tim kiem tin nhan
