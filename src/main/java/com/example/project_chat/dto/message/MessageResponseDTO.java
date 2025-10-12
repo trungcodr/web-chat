@@ -1,5 +1,6 @@
 package com.example.project_chat.dto.message;
 
+import com.example.project_chat.common.constants.MessageStatus;
 import com.example.project_chat.common.constants.MessageType;
 import com.example.project_chat.dto.response.UserResponseDTO;
 
@@ -20,7 +21,7 @@ public class MessageResponseDTO {
     private BigDecimal longitude;
     private Integer replyToId;
     private Date createdAt;
-
+    private MessageStatus status;
     public Integer getId() {
         return id;
     }
@@ -123,5 +124,13 @@ public class MessageResponseDTO {
 
     public void setCreatedAt(Date createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public MessageStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(MessageStatus status) {
+        this.status = status;
     }
 }

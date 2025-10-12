@@ -1,10 +1,14 @@
 package com.example.project_chat.controller;
 
 import com.example.project_chat.dto.message.ConversationSummaryDTO;
+import com.example.project_chat.dto.message.MarkAsReadRequestDTO;
+import com.example.project_chat.dto.message.MessageResponseDTO;
 import com.example.project_chat.dto.response.ApiResponse;
 import com.example.project_chat.dto.response.ConversationHistoryDTO;
 import com.example.project_chat.service.ConversationService;
 import com.example.project_chat.service.MessageService;
+import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -29,7 +33,7 @@ public class ConversationController {
         List<ConversationSummaryDTO> conversationSummaryDTOS = conversationService.getConversationsForCurrentUser();
         ApiResponse<List<ConversationSummaryDTO>> response = new ApiResponse<>(
                 HttpStatus.OK.value(),
-                "Lay danh sach cuoc tro chuyen thanh cong!",
+                "Lấy danh sách cuộc trò chuyện thành công!",
                 conversationSummaryDTOS
         );
         return new ResponseEntity<>(response, HttpStatus.OK);
@@ -47,9 +51,39 @@ public class ConversationController {
 
         ApiResponse<ConversationHistoryDTO> response = new ApiResponse<>(
                 HttpStatus.OK.value(),
-                "Lay lich su tin nhan thanh cong!",
+                "Lấy lịch sử tin nhắn thành công!",
                 history
         );
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("{conversationId}/read")
+    public ResponseEntity<ApiResponse<?>> markConversationAsRead(
+            @PathVariable Integer conversationId,
+            @Valid @RequestBody MarkAsReadRequestDTO requestDTO) {
+        messageService.markConversationAsRead(conversationId, requestDTO.getLastMessageId());
+        return ResponseEntity.ok(new ApiResponse<>(
+                HttpStatus.OK.value(),
+                "Đánh dấu là đã đọc thành công!",
+                null));
+    }
+
+    @GetMapping("/{conversationId}/search")
+    public ResponseEntity<ApiResponse<Page<MessageResponseDTO>>> searchMessagesInConversation(
+            @PathVariable Integer conversationId,
+            @RequestParam("q") String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<MessageResponseDTO> result = messageService.searchMessagesInConversation(conversationId, keyword, pageable);
+
+        ApiResponse<Page<MessageResponseDTO>> response = new ApiResponse<>(
+                HttpStatus.OK.value(),
+                "Tìm kiếm tin nhắn thành công!",
+                result
+        );
+        return ResponseEntity.ok(response);
+    }
+
 }

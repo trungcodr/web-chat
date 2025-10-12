@@ -15,4 +15,6 @@ public interface FriendService {
     void respondToFriendRequest(Integer requestId, UpdateFriendRequestDTO requestDTO);
     List<SentFriendRequestResponseDTO> getSentFriendRequests();
     List<FriendResponseDTO> getFriendList();
+    void cancelFriendRequest(Integer requestId);
+    void unFriend(Integer friendId);
 }

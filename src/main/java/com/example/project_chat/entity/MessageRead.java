@@ -12,7 +12,7 @@ public class MessageRead {
     private Integer id;
 
     @Column(name = "user_id", nullable = false)
-    private Integer user_id;
+    private Integer userId;
 
 
     @Column(name = "message_id", nullable = false)
@@ -24,9 +24,9 @@ public class MessageRead {
     public MessageRead() {
     }
 
-    public MessageRead(Integer id, Integer user_id, Integer messageId, Timestamp readAt) {
+    public MessageRead(Integer id, Integer userId, Integer messageId, Timestamp readAt) {
         this.id = id;
-        this.user_id = user_id;
+        this.userId = userId;
         this.messageId = messageId;
         this.readAt = readAt;
     }
@@ -39,12 +39,12 @@ public class MessageRead {
         this.id = id;
     }
 
-    public Integer getUser_id() {
-        return user_id;
+    public Integer getUserId() {
+        return userId;
     }
 
-    public void setUser_id(Integer user_id) {
-        this.user_id = user_id;
+    public void setUserId(Integer userId) {
+        this.userId = userId;
     }
 
     public Integer getMessageId() {

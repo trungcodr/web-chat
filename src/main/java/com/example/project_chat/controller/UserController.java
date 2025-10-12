@@ -23,7 +23,7 @@ public class UserController {
         UserResponseDTO user = userService.getCurrentUser();
         ApiResponse<UserResponseDTO> response = new ApiResponse<>(
                 HttpStatus.OK.value(),
-                "Lay thong tin nguoi dung thanh cong!",
+                "Lấy thông tin người dùng thành công!",
                 user
         );
         return ResponseEntity.ok(response);
@@ -34,7 +34,7 @@ public class UserController {
         UserResponseDTO updateUser = userService.updateUser(requestDTO);
         ApiResponse<UserResponseDTO> response = new ApiResponse<>(
                 HttpStatus.OK.value(),
-                "Cap nhat thong tin thanh cong!",
+                "Cập nhật thông tin thành công!",
                 updateUser
         );
         return ResponseEntity.ok(response);

@@ -32,7 +32,7 @@ public class MessageMapper {
         dto.setLongitude(message.getLongitude());
         dto.setReplyToId(message.getReplyToId());
         dto.setCreatedAt(message.getCreatedAt());
-
+        dto.setStatus(message.getStatus());
         // Lấy thông tin người gửi và map sang DTO
         if (message.getSenderId() != null) {
             User sender = userRepository.findById(message.getSenderId()).orElse(null);

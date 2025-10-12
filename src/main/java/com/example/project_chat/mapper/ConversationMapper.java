@@ -32,8 +32,8 @@ public class ConversationMapper {
     public ConversationSummaryDTO toConversationSummaryDTO(Conversation conversation, User currentUser) {
         ConversationSummaryDTO dto = new ConversationSummaryDTO();
         dto.setId(conversation.getId());
-
-        // 1. lay va map tin nhan cuoi cung
+        dto.setType(conversation.getType());
+        // lay va map tin nhan cuoi cung
         Optional<Message> lastMessageOpt = messageRepository.findFirstByConversationIdOrderByCreatedAtDesc(conversation.getId());
         if (lastMessageOpt.isPresent()) {
             Message lastMessage = lastMessageOpt.get();
@@ -78,6 +78,7 @@ public class ConversationMapper {
                 userRepository.findById(otherUserIdOpt.get()).ifPresent(otherUser -> {
                     dto.setName(otherUser.getDisplayName());
                     dto.setAvatarUrl(otherUser.getAvatarUrl());
+                    dto.setParticipantId(otherUser.getId());
                 });
             }
         } else {

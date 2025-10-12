@@ -26,21 +26,28 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<?>> register(@Valid @RequestBody RegisterRequestDTO registerRequestDTO) {
         authService.requestRegistration(registerRequestDTO);
-        ApiResponse<?> apiResponse = new ApiResponse<>(HttpStatus.OK.value(),"Ma OTP da duoc gui den email cua ban. Vui long kiem tra thu",null);
+        ApiResponse<?> apiResponse = new ApiResponse<>(
+                HttpStatus.OK.value(),
+                "Mã OTP đã được gửi đến email của bạn. Vui lòng kiểm tra thử",
+                null);
         return ResponseEntity.ok(apiResponse);
     }
 
     @PostMapping("/register/verify")
     public ResponseEntity<ApiResponse<?>> verify(@Valid @RequestBody VerifyOtpRequestDTO requestDTO) {
         authService.verifyOtp(requestDTO);
-        ApiResponse<?> response = new ApiResponse<>(HttpStatus.OK.value(), "Xac thuc OTP thanh cong, vui long tao mat khau.", null);
+        ApiResponse<?> response = new ApiResponse<>(
+                HttpStatus.OK.value(),
+                "Xác thực OTP thành công, vui lòng tạo mật khẩu.", null);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/register/password")
     public ResponseEntity<ApiResponse<?>> createPassword(@Valid @RequestBody CreatePasswordRequestDTO requestDTO) {
         authService.createAccount(requestDTO);
-        ApiResponse<?> response = new ApiResponse<>(HttpStatus.OK.value(), "Tao tai khoan thanh cong!", null);
+        ApiResponse<?> response = new ApiResponse<>(
+                HttpStatus.OK.value(),
+                "Tạo tài khoản thành công!", null);
         return ResponseEntity.ok(response);
     }
 
@@ -64,7 +71,7 @@ public class AuthController {
         authService.logout(email);
         ApiResponse<?> response = new ApiResponse<>(
                 HttpStatus.OK.value(),
-                "Dang xuat thanh cong!",
+                "Đăng xuất thành công!",
                 null
         );
         return ResponseEntity.ok(response);
@@ -75,7 +82,7 @@ public class AuthController {
         authService.requestPasswordReset(requestDTO);
         ApiResponse<?> response = new ApiResponse<>(
                 HttpStatus.OK.value(),
-                "OTP de reset mat khau da duoc gui!",
+                "OTP để reset mật khẩu đã được gửi!",
                 null);
         return ResponseEntity.ok(response);
     }
@@ -85,7 +92,7 @@ public class AuthController {
         authService.verifyOtpForPasswordReset(requestDTO);
         ApiResponse<?> response = new ApiResponse<>(
                 HttpStatus.OK.value(),
-                "Xac thuc OTP thanh cong!",
+                "Xác thực OTP thành công!",
                 null);
         return ResponseEntity.ok(response);
     }
@@ -95,7 +102,7 @@ public class AuthController {
         authService.resetPassword(requestDTO);
         ApiResponse<?> response = new ApiResponse<>(
           HttpStatus.OK.value(),
-          "Dat lai mat khau thanh cong!",
+          "Đặt lại mật khẩu thành công!",
                 null
         );
         return ResponseEntity.ok(response);
@@ -106,7 +113,7 @@ public class AuthController {
         RefreshTokenResponseDTO refreshTokenResponseDTO = authService.refreshToken(requestDTO);
         ApiResponse<RefreshTokenResponseDTO> response = new ApiResponse<>(
                 HttpStatus.OK.value(),
-                "Lam moi token thanh cong!",
+                "Làm mới token thành công!",
                 refreshTokenResponseDTO
         );
         return ResponseEntity.ok(response);

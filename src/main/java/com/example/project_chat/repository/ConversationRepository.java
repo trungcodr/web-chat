@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -17,5 +17,16 @@ public interface ConversationRepository extends JpaRepository<Conversation, Inte
             "WHERE c.type = 'DIRECT' " +
             "AND cm1.userId = :user1Id " +
             "AND cm2.userId = :user2Id")
-    Optional<Integer> findDirectConversationIdByUserIds(@Param("user1Id") Integer user1Id, @Param("user2Id") Integer user2Id);
+    Optional<Integer> findDirectConversationIdByUserIds(@Param("user1Id") Integer user1Id,
+                                                        @Param("user2Id") Integer user2Id);
+
+    @Query("SELECT c FROM Conversation c JOIN ConversationMember cm ON c.id = cm.conversationId " +
+            "WHERE cm.userId = :userId AND c.type = 'GROUP'")
+    List<Conversation> findGroupConversationsByUserId(@Param("userId") Integer userId);
+
+    @Query("SELECT c FROM Conversation c JOIN ConversationMember cm ON c.id = cm.conversationId " +
+            "WHERE cm.userId = :userId AND c.type = 'GROUP' AND c.name LIKE %:keyword%")
+    List<Conversation> findGroupConversationsByUserIdAndNameContaining(
+            @Param("userId") Integer userId,
+            @Param("keyword") String keyword);
 }

@@ -27,7 +27,7 @@ public class FriendController {
         friendService.sendFriendRequest(requestDTO);
         ApiResponse<?> response = new ApiResponse<>(
                 HttpStatus.OK.value(),
-                "Gui loi moi ket ban thanh cong!",
+                "Gửi lời mời kết bạn thành công!",
                 null
         );
         return  ResponseEntity.ok(response);
@@ -38,7 +38,7 @@ public class FriendController {
         List<FriendRequestResponseDTO> requests = friendService.getReceivedFriendRequests();
         ApiResponse<List<FriendRequestResponseDTO>> response = new ApiResponse<>(
                 HttpStatus.OK.value(),
-                "Lay danh sach loi moi ket ban da nhan thanh cong!",
+                "Lấy danh sách lời mời kết bạn đã nhận thành công!",
                 requests
         );
         return ResponseEntity.ok(response);
@@ -52,8 +52,8 @@ public class FriendController {
         friendService.respondToFriendRequest(requestId, request);
 
         String message = request.getStatus() == com.example.project_chat.common.constants.FriendStatus.ACCEPTED
-                ? "Chap nhan loi moi ket ban!"
-                : "Tu choi loi moi ket ban!";
+                ? "Chấp nhận lời mời kết bạn!"
+                : "Từ chối lời mời kết bạn!";
 
         ApiResponse<?> response = new ApiResponse<>(HttpStatus.OK.value(), message, null);
         return ResponseEntity.ok(response);
@@ -75,9 +75,32 @@ public class FriendController {
         List<FriendResponseDTO> friendList = friendService.getFriendList();
         ApiResponse<List<FriendResponseDTO>> response = new ApiResponse<>(
                 HttpStatus.OK.value(),
-                "Lay danh sach ban be thanh cong!",
+                "Lấy danh sách lời mời đã gửi thành công!",
                 friendList
         );
         return ResponseEntity.ok(response);
     }
+
+    @DeleteMapping("/requests/{requestId}")
+    public ResponseEntity<ApiResponse<?>> cancelFriendRequest(@PathVariable Integer requestId) {
+        friendService.cancelFriendRequest(requestId);
+        ApiResponse<?> response = new ApiResponse<>(
+                HttpStatus.OK.value(),
+                "Thu hồi lời mời kết bạn thành công!",
+                null
+        );
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{friendId}")
+    public ResponseEntity<ApiResponse<?>> unFriend(@PathVariable Integer friendId) {
+        friendService.unFriend(friendId);
+        ApiResponse<?> response = new ApiResponse<>(
+                HttpStatus.OK.value(),
+                "Hủy kết bạn thành công!",
+                null
+        );
+        return ResponseEntity.ok(response);
+    }
+
 }

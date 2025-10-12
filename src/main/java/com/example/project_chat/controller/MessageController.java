@@ -26,7 +26,7 @@ public class MessageController {
         MessageResponseDTO newMessage = messageService.sendMessage(request);
         ApiResponse<MessageResponseDTO> response = new ApiResponse<>(
                 HttpStatus.CREATED.value(),
-                "Gui tin nhan thanh cong!",
+                "Gửi tin nhắn thành công!",
                 newMessage
         );
         return new ResponseEntity<>(response, HttpStatus.CREATED);

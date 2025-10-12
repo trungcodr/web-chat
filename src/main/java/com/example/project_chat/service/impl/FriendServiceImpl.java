@@ -42,7 +42,7 @@ public class FriendServiceImpl implements FriendService {
                 .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi gui yeu cau."));
         // Tim nguoi nhan yeu cau bang display name
         User receiver = userRepository.findByDisplayName(friendRequestDTO.getDisplayName())
-                .orElseThrow(() -> new  ResourceNotFoundException("Khong tim thay nguoi nhan yeu cau."));
+                .orElseThrow(() -> new  ResourceNotFoundException("Không tìm thấy người nhận."));
         // nguoi dung khong the tu gui yeu cau cho chinh minh
         if(requester.getId().equals(receiver.getId())) {
             throw new BadRequestException("Khong the tu ket ban voi chinh minh!");
@@ -97,7 +97,6 @@ public class FriendServiceImpl implements FriendService {
             friendRepository.save(friendRequest);
             // tao mot ban ghi hai chieu
             Friend recRelationship = new Friend();
-            recRelationship.setUserId(currentUser.getId());
             recRelationship.setUserId(currentUser.getId()); // nguoi chap nhan loi moi
             recRelationship.setFriendId(friendRequest.getUserId()); // nguoi gui loi moi
             recRelationship.setStatus(FriendStatus.ACCEPTED);
@@ -129,7 +128,7 @@ public class FriendServiceImpl implements FriendService {
     public List<FriendResponseDTO> getFriendList() {
         String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         User currentUser = userRepository.findByEmail(currentUserEmail)
-                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung hien tai."));
+                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung hien tai!"));
 
         List<Friend> acceptedRelationships = friendRepository.findByUserIdAndStatus(currentUser.getId(), FriendStatus.ACCEPTED);
 
@@ -137,4 +136,41 @@ public class FriendServiceImpl implements FriendService {
                 .map(friendMapper::toFriendResponseDTO)
                 .collect(Collectors.toList());
     }
+
+    @Override
+    @Transactional
+    public void cancelFriendRequest(Integer requestId) {
+        //Lay thong tin nguoi dung hien tai - nguoi muon huy
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung hien tai!"));
+        // tim loi moi ket ban theo id
+        Friend friendRequest = friendRepository.findById(requestId)
+                .orElseThrow(() -> new BadRequestException("Ban khong co quyen thu hoi loi moi ket ban!"));
+        if (friendRequest.getStatus() != FriendStatus.PENDING) {
+            throw new BadRequestException("Khong the thu hoi loi moi da duoc tra loi!");
+        }
+        friendRepository.delete(friendRequest);
+        logger.info("Nguoi dung ID {} da thu hoi loi moi ket ban ID {}", currentUser.getId(), requestId);
+    }
+
+    @Override
+    @Transactional
+    public void unFriend(Integer friendId) {
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung hien tai!"));
+        Friend relationship1 = friendRepository.findByUserIdAndFriendId(currentUser.getId(),friendId).orElse(null);
+        Friend relationship2 = friendRepository.findByUserIdAndFriendId(friendId,currentUser.getId()).orElse(null);
+        if (relationship1 != null && relationship2 != null) {
+            friendRepository.delete(relationship1);
+            friendRepository.delete(relationship2);
+            logger.info("Nguoi dung ID {} da huy ket ban voi nguoi dung ID {}", currentUser.getId(), friendId);
+        } else {
+            logger.warn("Khong tim moi quan he giua hai nguoi dung ID {} va nguoi dung ID {}", currentUser.getId(), friendId);
+            throw new BadRequestException("Ban khong phai la ban be voi nguoi dung nay!");
+        }
+    }
+
+
 }

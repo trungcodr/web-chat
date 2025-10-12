@@ -1,5 +1,7 @@
 package com.example.project_chat.dto.message;
 
+import com.example.project_chat.common.constants.ConversationType;
+
 import java.util.List;
 
 public class ConversationSummaryDTO {
@@ -8,7 +10,8 @@ public class ConversationSummaryDTO {
     private String avatarUrl;
     private List<Integer> members;
     private LastMessageDTO lastMessage;
-
+    private Integer participantId;
+    private ConversationType type;
     public Integer getId() {
         return id;
     }
@@ -47,5 +50,21 @@ public class ConversationSummaryDTO {
 
     public void setLastMessage(LastMessageDTO lastMessage) {
         this.lastMessage = lastMessage;
+    }
+
+    public Integer getParticipantId() {
+        return participantId;
+    }
+
+    public void setParticipantId(Integer participantId) {
+        this.participantId = participantId;
+    }
+
+    public ConversationType getType() {
+        return type;
+    }
+
+    public void setType(ConversationType type) {
+        this.type = type;
     }
 }

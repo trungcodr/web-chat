@@ -78,8 +78,8 @@ public class AuthServiceImpl implements AuthService {
             System.out.println("4. ĐÃ LƯU OTP VÀO REDIS THÀNH CÔNG.");
         } catch (Exception e) {
             System.out.println("LỖI NGHIÊM TRỌNG: KHÔNG THỂ LƯU OTP VÀO REDIS.");
-            e.printStackTrace(); // In ra lỗi chi tiết
-            throw e; // Ném lại lỗi để GlobalExceptionHandler bắt
+            e.printStackTrace();
+            throw e;
         }
 
         System.out.println("5. Bắt đầu gửi email...");
@@ -180,13 +180,12 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByEmail(forgotPasswordRequestDTO.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("Khong tim thay nguoi dung voi email: " + forgotPasswordRequestDTO.getEmail()));
 
-        // 2. Tạo OTP, lưu vào Redis với prefix khác
+        // Tạo OTP, lưu vào Redis với prefix khác
         String otp = generateOtp();
         String redisKey = RESET_OTP_PREFIX + forgotPasswordRequestDTO.getEmail();
         redisTemplate.opsForValue().set(redisKey, otp, 5, TimeUnit.MINUTES);
 
-        // 3. Gửi email chứa OTP
-        // TODO: Tạo một mẫu email khác cho việc reset mật khẩu
+        // Gửi email chứa OTP
         emailService.sendOtpEmail(forgotPasswordRequestDTO.getEmail(), otp);
         logger.info("Da gui OTP reset mat khau cho {}.", forgotPasswordRequestDTO.getEmail());
     }

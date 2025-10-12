@@ -1,20 +1,16 @@
 package com.example.project_chat.service.impl;
 
+import com.example.project_chat.common.constants.MessageStatus;
 import com.example.project_chat.common.exception.BadRequestException;
 import com.example.project_chat.common.exception.ResourceNotFoundException;
 import com.example.project_chat.dto.message.MessageResponseDTO;
 import com.example.project_chat.dto.message.SendMessageRequestDTO;
 import com.example.project_chat.dto.response.ConversationHistoryDTO;
 import com.example.project_chat.dto.response.UserResponseDTO;
-import com.example.project_chat.entity.Conversation;
-import com.example.project_chat.entity.ConversationMember;
-import com.example.project_chat.entity.Message;
-import com.example.project_chat.entity.User;
+import com.example.project_chat.entity.*;
 import com.example.project_chat.mapper.MessageMapper;
 import com.example.project_chat.mapper.UserMapper;
-import com.example.project_chat.repository.ConversationMemberRepository;
-import com.example.project_chat.repository.MessageRepository;
-import com.example.project_chat.repository.UserRepository;
+import com.example.project_chat.repository.*;
 import com.example.project_chat.service.ConversationService;
 import com.example.project_chat.service.FileStorageService;
 import com.example.project_chat.service.MessageService;
@@ -23,11 +19,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -35,16 +33,20 @@ import java.util.stream.Collectors;
 public class MessageServiceImpl implements MessageService {
     private static final Logger log = LoggerFactory.getLogger(MessageServiceImpl.class);
     private final MessageRepository messageRepository;
+    private final MessageReadRepository readRepository;
     private final UserRepository userRepository;
+    private final ConversationRepository conversationRepository;
     private final ConversationService conversationService;
     private final FileStorageService fileStorageService;
     private final MessageMapper messageMapper;
     private final ConversationMemberRepository conversationMemberRepository;
     private final SimpMessagingTemplate messagingTemplate;
 
-    public MessageServiceImpl(MessageRepository messageRepository, UserRepository userRepository, ConversationService conversationService, FileStorageService fileStorageService, MessageMapper messageMapper, ConversationMemberRepository conversationMemberRepository, SimpMessagingTemplate messagingTemplate) {
+    public MessageServiceImpl(MessageRepository messageRepository, MessageReadRepository readRepository, UserRepository userRepository, ConversationRepository conversationRepository, ConversationService conversationService, FileStorageService fileStorageService, MessageMapper messageMapper, ConversationMemberRepository conversationMemberRepository, SimpMessagingTemplate messagingTemplate) {
         this.messageRepository = messageRepository;
+        this.readRepository = readRepository;
         this.userRepository = userRepository;
+        this.conversationRepository = conversationRepository;
         this.conversationService = conversationService;
         this.fileStorageService = fileStorageService;
         this.messageMapper = messageMapper;
@@ -59,17 +61,30 @@ public class MessageServiceImpl implements MessageService {
         String senderEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         User sender = userRepository.findByEmail(senderEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi gui!"));
-        //lay thong tin nguoi nhan
-        User receiver = userRepository.findById(requestDTO.getReceiverId())
-                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi nhan!"));
-        //tim hoac tao cuoc tro chuyen 1-1
-        Conversation conversation = conversationService.findOrCreateConversation(sender.getId(), receiver.getId());
+
+        Conversation conversation;
+        if (requestDTO.getConversationId() != null) {
+            boolean isMember = conversationMemberRepository.existsByConversationIdAndUserId(requestDTO.getConversationId(), sender.getId());
+            if (!isMember) {
+                throw new BadRequestException("Ban khong phai thanh vien cua cuoc tro chuyen nay!");
+            }
+            conversation = conversationRepository.findById(requestDTO.getConversationId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy cuộc trò chuyện!"));
+        }
+        else if (requestDTO.getReceiverId() != null) {
+            User receiver = userRepository.findById(requestDTO.getReceiverId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người nhận!"));
+            conversation = conversationService.findOrCreateConversation(sender.getId(), receiver.getId());
+        } else {
+            throw new BadRequestException("Yêu cầu gửi tin nhắn không hợp lệ (thiếu conversationId hoặc receiverId).");
+        }
         //Tao doi tuong message
         Message message = new Message();
         message.setConversationId(conversation.getId());
         message.setSenderId(sender.getId());
         message.setType(requestDTO.getType());
         message.setReplyToId(requestDTO.getReplyToId());
+        message.setStatus(MessageStatus.SENT);
         //xu ly loai tin nhan text , image ,file,....
         switch (requestDTO.getType()) {
             case TEXT:
@@ -133,6 +148,63 @@ public class MessageServiceImpl implements MessageService {
         historyDTO.setMembers(memberDtos);
 
         return historyDTO;
+    }
+
+    @Override
+    @Transactional
+    public void markConversationAsRead(Integer conversationId, Integer lastMessageId) {
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung hien tai!"));
+
+        List<Message> messagesToProcess = messageRepository.findMessagesToMarkAsRead(
+                conversationId,
+                currentUser.getId(),
+                lastMessageId
+        );
+
+        if (messagesToProcess.isEmpty()) {
+            return;
+        }
+
+        List<MessageRead> newReadRecords = new ArrayList<>();
+
+        for (Message message : messagesToProcess) {
+            // cap nhat trang thai va tao bang ghi 'da doc'
+            message.setStatus(MessageStatus.SEEN);
+            MessageRead readRecord = new MessageRead();
+            readRecord.setMessageId(message.getId());
+            readRecord.setUserId(currentUser.getId());
+            readRecord.setReadAt(new Timestamp(System.currentTimeMillis()));
+            newReadRecords.add(readRecord);
+        }
+
+        readRepository.saveAll(newReadRecords);
+        List<Message> updatedMessages = messageRepository.saveAll(messagesToProcess);
+
+        //gui thong bao cap nhat qua WebSocket
+        String destination = "/topic/conversations/" + conversationId;
+        for (Message updatedMessage : updatedMessages) {
+            MessageResponseDTO messageResponseDTO = messageMapper.toMessageResponseDTO(updatedMessage);
+            messagingTemplate.convertAndSend(destination, messageResponseDTO);
+            log.info("Da gui cap nhat trang thai SEEN cho tin nhan ID {} den topic: {}", updatedMessage.getId(), destination);
+        }
+    }
+
+    @Override
+    public Page<MessageResponseDTO> searchMessagesInConversation(Integer conversationId, String keyword, Pageable pageable) {
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng hiện tại."));
+        boolean isMember = conversationMemberRepository.existsByConversationIdAndUserId(conversationId, currentUser.getId());
+        if (!isMember) {
+            throw new AccessDeniedException("Bạn không có quyền truy cập vào cuộc trò chuyện này.");
+        }
+
+        // tim kiem tin nhan
+        Page<Message> messagePage = messageRepository.findByConversationIdAndContentContainingIgnoreCaseOrderByCreatedAtDesc(
+                conversationId, keyword, pageable);
+        return messagePage.map(messageMapper::toMessageResponseDTO);
     }
 
 

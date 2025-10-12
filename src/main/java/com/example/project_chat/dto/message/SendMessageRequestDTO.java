@@ -8,9 +8,9 @@ import java.math.BigDecimal;
 
 public class SendMessageRequestDTO {
     //Id cua nguoi nhan (trong chat 1 -1)
-    @NotNull(message = "Id nguoi nhan khong duoc de trong!")
+//    @NotNull(message = "Id nguoi nhan khong duoc de trong!")
     private Integer receiverId;
-
+    private Integer conversationId;
     //Loai tin nhan
     @NotNull(message = "Loai tin nhan khong duoc de trong")
     private MessageType type;
@@ -86,5 +86,13 @@ public class SendMessageRequestDTO {
 
     public void setReplyToId(Integer replyToId) {
         this.replyToId = replyToId;
+    }
+
+    public Integer getConversationId() {
+        return conversationId;
+    }
+
+    public void setConversationId(Integer conversationId) {
+        this.conversationId = conversationId;
     }
 }

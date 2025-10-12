@@ -1,6 +1,10 @@
 package com.example.project_chat.config;
 
+import com.example.project_chat.repository.ConversationMemberRepository;
+import com.example.project_chat.repository.UserRepository;
+import com.example.project_chat.security.CustomUserDetailsService;
 import com.example.project_chat.security.JwtChannelInterceptor;
+import com.example.project_chat.security.JwtTokenProvider;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -13,8 +17,8 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 public class WebsocketConfig implements WebSocketMessageBrokerConfigurer {
     private final JwtChannelInterceptor jwtChannelInterceptor;
 
-    public WebsocketConfig(JwtChannelInterceptor jwtChannelInterceptor) {
-        this.jwtChannelInterceptor = jwtChannelInterceptor;
+    public WebsocketConfig(JwtTokenProvider jwtTokenProvider, CustomUserDetailsService customUserDetailsService, ConversationMemberRepository conversationMemberRepository, UserRepository userRepository) {
+        this.jwtChannelInterceptor = new JwtChannelInterceptor(jwtTokenProvider, customUserDetailsService, conversationMemberRepository, userRepository);
     }
 
 
