@@ -1,5 +1,6 @@
 package com.example.project_chat.controller;
 
+import com.example.project_chat.dto.message.EditMessageRequestDTO;
 import com.example.project_chat.dto.message.MessageResponseDTO;
 import com.example.project_chat.dto.message.SendMessageRequestDTO;
 import com.example.project_chat.dto.response.ApiResponse;
@@ -8,10 +9,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/messages")
@@ -30,5 +28,16 @@ public class MessageController {
                 newMessage
         );
         return new ResponseEntity<>(response, HttpStatus.CREATED);
+    }
+
+    @PutMapping
+    public ResponseEntity<ApiResponse<MessageResponseDTO>> editMessage(@Valid @RequestBody EditMessageRequestDTO request) {
+        MessageResponseDTO editedMessage = messageService.editMessage(request);
+        ApiResponse<MessageResponseDTO> response = new ApiResponse<>(
+                HttpStatus.OK.value(),
+                "Chinh sua tin nhan thanh cong!",
+                editedMessage
+        );
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 }

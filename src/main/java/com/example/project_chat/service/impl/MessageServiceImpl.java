@@ -1,8 +1,10 @@
 package com.example.project_chat.service.impl;
 
 import com.example.project_chat.common.constants.MessageStatus;
+import com.example.project_chat.common.constants.MessageType;
 import com.example.project_chat.common.exception.BadRequestException;
 import com.example.project_chat.common.exception.ResourceNotFoundException;
+import com.example.project_chat.dto.message.EditMessageRequestDTO;
 import com.example.project_chat.dto.message.MessageResponseDTO;
 import com.example.project_chat.dto.message.SendMessageRequestDTO;
 import com.example.project_chat.dto.response.ConversationHistoryDTO;
@@ -214,6 +216,35 @@ public class MessageServiceImpl implements MessageService {
         Page<Message> messagePage = messageRepository.findByConversationIdAndContentContainingIgnoreCaseOrderByCreatedAtDesc(
                 conversationId, keyword, pageable);
         return messagePage.map(messageMapper::toMessageResponseDTO);
+    }
+
+    @Override
+    @Transactional
+    public MessageResponseDTO editMessage(EditMessageRequestDTO requestDTO) {
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung hien tai!"));
+        Message message = messageRepository.findById(requestDTO.getMessageId())
+                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay tin nhan!"));
+        if (!message.getSenderId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("Ban khong co quyen chinh sua tin nhan nay!");
+        }
+        if (message.getType() != MessageType.TEXT) {
+            throw new BadRequestException("Chi co the chinh sua tin nhan van ban!");
+        }
+
+        message.setContent(requestDTO.getNewContent());
+        message.setEdited(true);
+        message.setUpdatedAt(new Timestamp(System.currentTimeMillis()));
+        Message editedMessage = messageRepository.save(message);
+        log.info("Da chinh sua tin nhan ID {} trong cuoc tro chuyen ID {}.",editedMessage.getId(),
+                editedMessage.getConversationId());
+
+        MessageResponseDTO messageResponseDTO = messageMapper.toMessageResponseDTO(message);
+        String destination = "/topic/conversations/" + editedMessage.getConversationId();
+        messagingTemplate.convertAndSend(destination, messageResponseDTO);
+        log.info("Da day cap nhat tin nhan ID {} den WebSocket topic: {} ",editedMessage.getId(), destination);
+        return messageResponseDTO;
     }
 
 
