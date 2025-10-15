@@ -6,6 +6,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+
+import java.sql.Timestamp;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,4 +28,5 @@ public interface MessageRepository extends JpaRepository<Message, Integer> {
     Page<Message> findByConversationIdAndContentContainingIgnoreCaseOrderByCreatedAtDesc(Integer conversationId,
                                                                                          String keyword,
                                                                                          Pageable pageable);
+    Page<Message> findByConversationIdAndCreatedAtAfterOrderByCreatedAtDesc(Integer conversationId, Timestamp after, Pageable pageable);
 }

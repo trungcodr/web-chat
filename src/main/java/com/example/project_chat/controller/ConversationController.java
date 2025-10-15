@@ -86,4 +86,15 @@ public class ConversationController {
         return ResponseEntity.ok(response);
     }
 
+    @DeleteMapping("/{conversationId}/messages")
+    public ResponseEntity<ApiResponse<?>> clearHistory(@PathVariable Integer conversationId) {
+        messageService.clearHistoryForCurrentUser(conversationId);
+        ApiResponse<?> response = new ApiResponse<>(
+                HttpStatus.OK.value(),
+                "Xóa lịch sử cuộc trò chuyện thành công!",
+                null
+        );
+        return ResponseEntity.ok(response);
+    }
+
 }

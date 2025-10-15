@@ -13,4 +13,5 @@ public interface MessageService {
     void markConversationAsRead(Integer conversationId,Integer lastMessageId);
     Page<MessageResponseDTO> searchMessagesInConversation(Integer conversationId, String keyword, Pageable pageable);
     MessageResponseDTO editMessage(EditMessageRequestDTO editMessageRequestDTO);
+    void clearHistoryForCurrentUser(Integer conversationId);
 }

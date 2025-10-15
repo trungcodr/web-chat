@@ -2,6 +2,7 @@ package com.example.project_chat.controller;
 
 import com.example.project_chat.dto.group.AddMemberRequestDTO;
 import com.example.project_chat.dto.group.CreateGroupRequestDTO;
+import com.example.project_chat.dto.group.GroupMemberDTO;
 import com.example.project_chat.dto.group.UpdateGroupRequestDTO;
 import com.example.project_chat.dto.message.ConversationSummaryDTO;
 import com.example.project_chat.dto.response.ApiResponse;
@@ -72,5 +73,15 @@ public class GroupController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/{groupId}/members")
+    public ResponseEntity<ApiResponse<List<GroupMemberDTO>>> getGroupMembers(@PathVariable("groupId") Integer conversationId) {
+        List<GroupMemberDTO> members = conversationService.getGroupMembers(conversationId);
+        ApiResponse<List<GroupMemberDTO>> response = new ApiResponse<>(
+                HttpStatus.OK.value(),
+                "Lấy danh sách thành viên trong nhóm thành công!",
+                members
+        );
+        return ResponseEntity.ok(response);
+    }
 
 }

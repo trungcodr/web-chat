@@ -29,6 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -43,8 +44,8 @@ public class MessageServiceImpl implements MessageService {
     private final MessageMapper messageMapper;
     private final ConversationMemberRepository conversationMemberRepository;
     private final SimpMessagingTemplate messagingTemplate;
-
-    public MessageServiceImpl(MessageRepository messageRepository, MessageReadRepository readRepository, UserRepository userRepository, ConversationRepository conversationRepository, ConversationService conversationService, FileStorageService fileStorageService, MessageMapper messageMapper, ConversationMemberRepository conversationMemberRepository, SimpMessagingTemplate messagingTemplate) {
+    private final UserConversationClearRepository userConversationClearRepository;
+    public MessageServiceImpl(MessageRepository messageRepository, MessageReadRepository readRepository, UserRepository userRepository, ConversationRepository conversationRepository, ConversationService conversationService, FileStorageService fileStorageService, MessageMapper messageMapper, ConversationMemberRepository conversationMemberRepository, SimpMessagingTemplate messagingTemplate, UserConversationClearRepository userConversationClearRepository) {
         this.messageRepository = messageRepository;
         this.readRepository = readRepository;
         this.userRepository = userRepository;
@@ -54,6 +55,7 @@ public class MessageServiceImpl implements MessageService {
         this.messageMapper = messageMapper;
         this.conversationMemberRepository = conversationMemberRepository;
         this.messagingTemplate = messagingTemplate;
+        this.userConversationClearRepository = userConversationClearRepository;
     }
 
     @Override
@@ -117,7 +119,23 @@ public class MessageServiceImpl implements MessageService {
                 message.setFileSize((int) file.getSize());
                 break;
             case STICKER:
+            case VOICE:
+                MultipartFile file1 = requestDTO.getFile();
+                if (file1 == null || file1.isEmpty()) {
+                    throw new BadRequestException("File khong duoc de trong!.");
+                }
+                String fileUrl1 = fileStorageService.uploadFile(file1);
+                message.setFileUrl(fileUrl1);
+                message.setFileName(file1.getOriginalFilename());
+                message.setFileSize((int) file1.getSize());
+                break;
             case LOCATION:
+                if (requestDTO.getLatitude() == null || requestDTO.getLongitude() == null) {
+                    throw new BadRequestException("Toa do khong hop le!");
+                }
+                message.setLatitude(requestDTO.getLatitude());
+                message.setLongitude(requestDTO.getLongitude());
+                break;
         }
         //luu tin nhan vao csdl
         message.setCreatedAt(new Timestamp(System.currentTimeMillis()));
@@ -144,9 +162,27 @@ public class MessageServiceImpl implements MessageService {
         if (!isMember) {
             throw new BadRequestException("Ban khong co quyen truy cap vao cuoc tro chuyen nay!");
         }
-        Page<Message> messagePage = messageRepository.findByConversationIdOrderByCreatedAtDesc(conversationId, pageable);
+        // kiem tra xem nguoi dung da xoa cuoc tro chuyen nay truoc do hay chua
+        Optional<UserConversationClear> clearRecord = userConversationClearRepository
+                .findByUserIdAndConversationId(currentUser.getId(), conversationId);
+
+        Page<Message> messagePage;
+        if (clearRecord.isPresent()) {
+            //neu co, chi lay nhung tin nhan duoc tao sau thoi diem nguoi dung da xoa
+            messagePage = messageRepository.findByConversationIdAndCreatedAtAfterOrderByCreatedAtDesc(
+                    conversationId,
+                    clearRecord.get().getClearedAt(),
+                    pageable
+            );
+        } else {
+            // neu khong, lay toan bo lich su  tin nhan (da duoc phan trang)
+            messagePage = messageRepository.findByConversationIdOrderByCreatedAtDesc(conversationId, pageable);
+        }
+
+        // map tin nhan tu entity sang dto
         Page<MessageResponseDTO> messageDtoPage = messagePage.map(messageMapper::toMessageResponseDTO);
 
+        // lay danh sach thanh vien cua cuoc tro chuyen
         List<ConversationMember> members = conversationMemberRepository.findByConversationId(conversationId);
         List<Integer> memberIds = members.stream().map(ConversationMember::getUserId).collect(Collectors.toList());
         List<User> memberUsers = userRepository.findAllById(memberIds);
@@ -154,6 +190,7 @@ public class MessageServiceImpl implements MessageService {
                 .map(UserMapper::toUserResponseDTO)
                 .collect(Collectors.toList());
 
+        // tao doi tuong tra ve chua ca tin nhan va danh sach thanh vien
         ConversationHistoryDTO historyDTO = new ConversationHistoryDTO();
         historyDTO.setMessages(messageDtoPage);
         historyDTO.setMembers(memberDtos);
@@ -247,5 +284,28 @@ public class MessageServiceImpl implements MessageService {
         return messageResponseDTO;
     }
 
+    @Override
+    @Transactional
+    public void clearHistoryForCurrentUser(Integer conversationId) {
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung hien tai!"));
+
+        if (!conversationMemberRepository.existsByConversationIdAndUserId(conversationId, currentUser.getId())) {
+            throw new AccessDeniedException("Ban khong phai la thanh vien cuoc tro chuyen!");
+        }
+
+        UserConversationClear clearRecord = userConversationClearRepository
+                .findByUserIdAndConversationId(currentUser.getId(),conversationId)
+                .orElse(new UserConversationClear());
+
+        clearRecord.setUserId(currentUser.getId());
+        clearRecord.setConversationId(conversationId);
+        clearRecord.setClearedAt(new Timestamp(System.currentTimeMillis()));
+
+        userConversationClearRepository.save(clearRecord);
+        log.info("Nguoi dung ID {} da xoa lich su phia minh cho cuoc tro chuyen ID {}.",currentUser.getId(),conversationId);
+
+    }
 
 }

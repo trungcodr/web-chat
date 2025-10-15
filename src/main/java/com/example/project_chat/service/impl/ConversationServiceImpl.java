@@ -6,6 +6,7 @@ import com.example.project_chat.common.exception.BadRequestException;
 import com.example.project_chat.common.exception.ResourceNotFoundException;
 import com.example.project_chat.dto.group.AddMemberRequestDTO;
 import com.example.project_chat.dto.group.CreateGroupRequestDTO;
+import com.example.project_chat.dto.group.GroupMemberDTO;
 import com.example.project_chat.dto.group.UpdateGroupRequestDTO;
 import com.example.project_chat.dto.message.ConversationSummaryDTO;
 import com.example.project_chat.entity.Conversation;
@@ -37,7 +38,6 @@ public class ConversationServiceImpl implements ConversationService {
     private final UserRepository userRepository;
     private final ConversationMapper conversationMapper;
     private final FileStorageService fileStorageService;
-
     public ConversationServiceImpl(ConversationRepository conversationRepository, ConversationMemberRepository conversationMemberRepository, UserRepository userRepository, ConversationMapper conversationMapper, FileStorageService fileStorageService) {
         this.conversationRepository = conversationRepository;
         this.conversationMemberRepository = conversationMemberRepository;
@@ -210,6 +210,28 @@ public class ConversationServiceImpl implements ConversationService {
         }
         return conversationMapper.toConversationSummaryDTO(group, currentUser);
 
+    }
+
+    @Override
+    public List<GroupMemberDTO> getGroupMembers(Integer conversationId) {
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung hien tai"));
+        if (!conversationMemberRepository.existsByConversationIdAndUserId(conversationId, currentUser.getId())) {
+            throw new AccessDeniedException("Ban khong co quyen xem danh sach thanh vien cua nhom nay!");
+        }
+
+        List<Integer> memberIds = conversationMemberRepository.findByConversationId(conversationId)
+                .stream()
+                .map(ConversationMember::getUserId)
+                .collect(Collectors.toList());
+
+        List<User> members = userRepository.findAllById(memberIds);
+        return members.stream().map(user -> new GroupMemberDTO(
+                user.getId(),
+                user.getDisplayName(),
+                user.getAvatarUrl()
+        )).collect(Collectors.toList());
     }
 
     private Conversation createDirectConversation(Integer user1Id, Integer user2Id) {
