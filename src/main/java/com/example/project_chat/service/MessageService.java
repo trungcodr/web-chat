@@ -1,11 +1,14 @@
 package com.example.project_chat.service;
 
 import com.example.project_chat.dto.message.EditMessageRequestDTO;
+import com.example.project_chat.dto.message.ForwardMessageRequestDTO;
 import com.example.project_chat.dto.message.MessageResponseDTO;
 import com.example.project_chat.dto.message.SendMessageRequestDTO;
 import com.example.project_chat.dto.response.ConversationHistoryDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+
+import java.util.List;
 
 public interface MessageService {
     MessageResponseDTO sendMessage(SendMessageRequestDTO sendMessageRequestDTO);
@@ -14,4 +17,8 @@ public interface MessageService {
     Page<MessageResponseDTO> searchMessagesInConversation(Integer conversationId, String keyword, Pageable pageable);
     MessageResponseDTO editMessage(EditMessageRequestDTO editMessageRequestDTO);
     void clearHistoryForCurrentUser(Integer conversationId);
+    void forwardMessage(ForwardMessageRequestDTO requestDTO);
+    void pinMessage(Integer messageId);
+    List<MessageResponseDTO> getPinnedMessages(Integer conversationId);
+    void unpinMessage(Integer messageId);
 }

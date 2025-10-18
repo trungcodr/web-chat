@@ -1,6 +1,7 @@
 package com.example.project_chat.controller;
 
 import com.example.project_chat.dto.message.EditMessageRequestDTO;
+import com.example.project_chat.dto.message.ForwardMessageRequestDTO;
 import com.example.project_chat.dto.message.MessageResponseDTO;
 import com.example.project_chat.dto.message.SendMessageRequestDTO;
 import com.example.project_chat.dto.response.ApiResponse;
@@ -39,5 +40,38 @@ public class MessageController {
                 editedMessage
         );
         return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @PostMapping("/forward")
+    public ResponseEntity<ApiResponse<?>> forwardMessage(@Valid @RequestBody ForwardMessageRequestDTO request) {
+        messageService.forwardMessage(request);
+        ApiResponse<?> response = new ApiResponse<>(
+                HttpStatus.OK.value(),
+                "Chuyen tiep tin nhan thanh cong!",
+                null
+        );
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @PostMapping("/{messageId}/pin")
+    public ResponseEntity<ApiResponse<?>> pinMessage(@PathVariable Integer messageId) {
+        messageService.pinMessage(messageId);
+        ApiResponse<?> response = new ApiResponse<>(
+                HttpStatus.OK.value(),
+                "Ghim tin nhan thanh cong!",
+                null
+        );
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{messageId}/pin")
+    public ResponseEntity<ApiResponse<?>> unpinMessage(@PathVariable Integer messageId) {
+        messageService.unpinMessage(messageId);
+        ApiResponse<?> response = new ApiResponse<>(
+                HttpStatus.OK.value(),
+                "Bo ghim tin nhan thanh cong!",
+                null
+        );
+        return ResponseEntity.ok(response);
     }
 }

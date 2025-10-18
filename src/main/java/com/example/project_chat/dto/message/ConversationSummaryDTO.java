@@ -12,6 +12,7 @@ public class ConversationSummaryDTO {
     private LastMessageDTO lastMessage;
     private Integer participantId;
     private ConversationType type;
+    private boolean notificationsEnabled = true;
     public Integer getId() {
         return id;
     }
@@ -66,5 +67,13 @@ public class ConversationSummaryDTO {
 
     public void setType(ConversationType type) {
         this.type = type;
+    }
+
+    public boolean isNotificationsEnabled() {
+        return notificationsEnabled;
+    }
+
+    public void setNotificationsEnabled(boolean notificationsEnabled) {
+        this.notificationsEnabled = notificationsEnabled;
     }
 }

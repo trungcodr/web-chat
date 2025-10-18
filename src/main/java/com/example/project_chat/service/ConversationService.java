@@ -5,6 +5,7 @@ import com.example.project_chat.dto.group.CreateGroupRequestDTO;
 import com.example.project_chat.dto.group.GroupMemberDTO;
 import com.example.project_chat.dto.group.UpdateGroupRequestDTO;
 import com.example.project_chat.dto.message.ConversationSummaryDTO;
+import com.example.project_chat.dto.notification.UpdateNotificationSettingsDTO;
 import com.example.project_chat.entity.Conversation;
 
 import java.util.List;
@@ -17,4 +18,5 @@ public interface ConversationService {
     List<ConversationSummaryDTO> getGroupConversationsForCurrentUser();
     ConversationSummaryDTO updateGroupInfo(Integer groupId, UpdateGroupRequestDTO requestDTO);
     List<GroupMemberDTO> getGroupMembers(Integer conversationId);
+    void updateNotificationSettings(Integer conversationId, UpdateNotificationSettingsDTO requestDTO);
 }

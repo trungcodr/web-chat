@@ -9,12 +9,15 @@ import com.example.project_chat.dto.group.CreateGroupRequestDTO;
 import com.example.project_chat.dto.group.GroupMemberDTO;
 import com.example.project_chat.dto.group.UpdateGroupRequestDTO;
 import com.example.project_chat.dto.message.ConversationSummaryDTO;
+import com.example.project_chat.dto.notification.UpdateNotificationSettingsDTO;
 import com.example.project_chat.entity.Conversation;
 import com.example.project_chat.entity.ConversationMember;
+import com.example.project_chat.entity.NotificationSettings;
 import com.example.project_chat.entity.User;
 import com.example.project_chat.mapper.ConversationMapper;
 import com.example.project_chat.repository.ConversationMemberRepository;
 import com.example.project_chat.repository.ConversationRepository;
+import com.example.project_chat.repository.NotificationSettingsRepository;
 import com.example.project_chat.repository.UserRepository;
 import com.example.project_chat.service.ConversationService;
 import com.example.project_chat.service.FileStorageService;
@@ -38,12 +41,14 @@ public class ConversationServiceImpl implements ConversationService {
     private final UserRepository userRepository;
     private final ConversationMapper conversationMapper;
     private final FileStorageService fileStorageService;
-    public ConversationServiceImpl(ConversationRepository conversationRepository, ConversationMemberRepository conversationMemberRepository, UserRepository userRepository, ConversationMapper conversationMapper, FileStorageService fileStorageService) {
+    private final NotificationSettingsRepository notificationSettingsRepository;
+    public ConversationServiceImpl(ConversationRepository conversationRepository, ConversationMemberRepository conversationMemberRepository, UserRepository userRepository, ConversationMapper conversationMapper, FileStorageService fileStorageService, NotificationSettingsRepository notificationSettingsRepository) {
         this.conversationRepository = conversationRepository;
         this.conversationMemberRepository = conversationMemberRepository;
         this.userRepository = userRepository;
         this.conversationMapper = conversationMapper;
         this.fileStorageService = fileStorageService;
+        this.notificationSettingsRepository = notificationSettingsRepository;
     }
 
     @Override
@@ -232,6 +237,35 @@ public class ConversationServiceImpl implements ConversationService {
                 user.getDisplayName(),
                 user.getAvatarUrl()
         )).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void updateNotificationSettings(Integer conversationId, UpdateNotificationSettingsDTO requestDTO) {
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung hien tai!"));
+
+        if (!conversationMemberRepository.existsByConversationIdAndUserId(conversationId, currentUser.getId())) {
+            throw new AccessDeniedException("Ban khong phai la thanh vien cua cuoc tro chuyen nay.");
+        }
+
+        NotificationSettings settings = notificationSettingsRepository
+                .findByUserIdAndConversationId(currentUser.getId(), conversationId)
+                .orElse(new NotificationSettings());
+
+        settings.setUserId(currentUser.getId());
+        settings.setConversationId(conversationId);
+        settings.setEnableNotifications(requestDTO.getEnableNotifications());
+
+        // Xử lý logic cho onlyMentions
+        if (requestDTO.getOnlyMentions() != null) {
+            settings.setOnlyMentions(requestDTO.getOnlyMentions());
+        }
+
+        notificationSettingsRepository.save(settings);
+        log.info("Nguoi dung ID {} da cap nhat cai dat thong bao cho cuoc tro chuyen ID {}.",
+                currentUser.getId(), conversationId);
     }
 
     private Conversation createDirectConversation(Integer user1Id, Integer user2Id) {

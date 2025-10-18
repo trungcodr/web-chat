@@ -9,6 +9,7 @@ import com.example.project_chat.entity.Message;
 import com.example.project_chat.entity.User;
 import com.example.project_chat.repository.ConversationMemberRepository;
 import com.example.project_chat.repository.MessageRepository;
+import com.example.project_chat.repository.NotificationSettingsRepository;
 import com.example.project_chat.repository.UserRepository;
 import org.springframework.stereotype.Component;
 
@@ -22,17 +23,22 @@ public class ConversationMapper {
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
     private final ConversationMemberRepository conversationMemberRepository;
-
-    public ConversationMapper(MessageRepository messageRepository, UserRepository userRepository, ConversationMemberRepository conversationMemberRepository) {
+    private final NotificationSettingsRepository notificationSettingsRepository;
+    public ConversationMapper(MessageRepository messageRepository, UserRepository userRepository, ConversationMemberRepository conversationMemberRepository, NotificationSettingsRepository notificationSettingsRepository) {
         this.messageRepository = messageRepository;
         this.userRepository = userRepository;
         this.conversationMemberRepository = conversationMemberRepository;
+        this.notificationSettingsRepository = notificationSettingsRepository;
     }
 
     public ConversationSummaryDTO toConversationSummaryDTO(Conversation conversation, User currentUser) {
         ConversationSummaryDTO dto = new ConversationSummaryDTO();
         dto.setId(conversation.getId());
         dto.setType(conversation.getType());
+
+        notificationSettingsRepository.findByUserIdAndConversationId(currentUser.getId(), conversation.getId())
+                .ifPresent(settings -> dto.setNotificationsEnabled(settings.isEnableNotifications()));
+
         // lay va map tin nhan cuoi cung
         Optional<Message> lastMessageOpt = messageRepository.findFirstByConversationIdOrderByCreatedAtDesc(conversation.getId());
         if (lastMessageOpt.isPresent()) {

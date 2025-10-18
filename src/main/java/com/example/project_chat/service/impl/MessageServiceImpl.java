@@ -1,10 +1,12 @@
 package com.example.project_chat.service.impl;
 
+import com.example.project_chat.common.constants.MemberRole;
 import com.example.project_chat.common.constants.MessageStatus;
 import com.example.project_chat.common.constants.MessageType;
 import com.example.project_chat.common.exception.BadRequestException;
 import com.example.project_chat.common.exception.ResourceNotFoundException;
 import com.example.project_chat.dto.message.EditMessageRequestDTO;
+import com.example.project_chat.dto.message.ForwardMessageRequestDTO;
 import com.example.project_chat.dto.message.MessageResponseDTO;
 import com.example.project_chat.dto.message.SendMessageRequestDTO;
 import com.example.project_chat.dto.response.ConversationHistoryDTO;
@@ -45,7 +47,8 @@ public class MessageServiceImpl implements MessageService {
     private final ConversationMemberRepository conversationMemberRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final UserConversationClearRepository userConversationClearRepository;
-    public MessageServiceImpl(MessageRepository messageRepository, MessageReadRepository readRepository, UserRepository userRepository, ConversationRepository conversationRepository, ConversationService conversationService, FileStorageService fileStorageService, MessageMapper messageMapper, ConversationMemberRepository conversationMemberRepository, SimpMessagingTemplate messagingTemplate, UserConversationClearRepository userConversationClearRepository) {
+    private final PinnedMessageRepository pinnedMessageRepository;
+    public MessageServiceImpl(MessageRepository messageRepository, MessageReadRepository readRepository, UserRepository userRepository, ConversationRepository conversationRepository, ConversationService conversationService, FileStorageService fileStorageService, MessageMapper messageMapper, ConversationMemberRepository conversationMemberRepository, SimpMessagingTemplate messagingTemplate, UserConversationClearRepository userConversationClearRepository, PinnedMessageRepository pinnedMessageRepository) {
         this.messageRepository = messageRepository;
         this.readRepository = readRepository;
         this.userRepository = userRepository;
@@ -56,6 +59,7 @@ public class MessageServiceImpl implements MessageService {
         this.conversationMemberRepository = conversationMemberRepository;
         this.messagingTemplate = messagingTemplate;
         this.userConversationClearRepository = userConversationClearRepository;
+        this.pinnedMessageRepository = pinnedMessageRepository;
     }
 
     @Override
@@ -306,6 +310,151 @@ public class MessageServiceImpl implements MessageService {
         userConversationClearRepository.save(clearRecord);
         log.info("Nguoi dung ID {} da xoa lich su phia minh cho cuoc tro chuyen ID {}.",currentUser.getId(),conversationId);
 
+    }
+
+    @Override
+    public void forwardMessage(ForwardMessageRequestDTO requestDTO) {
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung hien tai!"));
+
+        Message originalMessage = messageRepository.findById(requestDTO.getMessageId())
+                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay tin nhan goc!"));
+
+        if (!conversationMemberRepository.existsByConversationIdAndUserId(originalMessage.getConversationId(), currentUser.getId())) {
+            throw new AccessDeniedException("Ban khong co quyen truy cap vao cuooc tro chuyen nay!");
+        }
+
+        List<Message> forwardedMessages = new ArrayList<>();
+
+        for (Integer targetConversationId : requestDTO.getConversationIds()) {
+            if (!conversationMemberRepository.existsByConversationIdAndUserId(targetConversationId, currentUser.getId())) {
+                log.warn("Nguoi dung {} khong phai la thanh vien cuoc tro chuyen {}.", currentUser.getId(), targetConversationId);
+                continue;
+            }
+
+            Message forwardedMessage = new Message();
+
+            //sao chep noi dung tu tin nhan goc
+            forwardedMessage.setType(originalMessage.getType());
+            forwardedMessage.setContent(originalMessage.getContent());
+            forwardedMessage.setFileUrl(originalMessage.getFileUrl());
+            forwardedMessage.setFileName(originalMessage.getFileName());
+            forwardedMessage.setFileSize(originalMessage.getFileSize());
+            forwardedMessage.setStickerId(originalMessage.getStickerId());
+            forwardedMessage.setLatitude(originalMessage.getLatitude());
+            forwardedMessage.setLongitude(originalMessage.getLongitude());
+
+            //thiet lap thong tin moi cho tin nhan chuyen tiep
+            forwardedMessage.setSenderId(currentUser.getId());
+            forwardedMessage.setConversationId(targetConversationId);
+            forwardedMessage.setStatus(MessageStatus.SENT);
+            forwardedMessage.setCreatedAt(new Timestamp(System.currentTimeMillis()));
+
+            forwardedMessages.add(forwardedMessage);
+        }
+
+        // luu tin nhan vao csdl
+        if (!forwardedMessages.isEmpty()) {
+            List<Message> savedMessages = messageRepository.saveAll(forwardedMessages);
+            log.info("Nguoi dung ID {} da chuyen tiep tin nhan ID {} den {} cuoc tro chuyen.", currentUser.getId(), originalMessage.getId(), savedMessages.size());
+
+            // gui thong bao websocket den tung cuoc tro chuyen
+            savedMessages.forEach(msg -> {
+                MessageResponseDTO messageResponseDTO = messageMapper.toMessageResponseDTO(msg);
+                String destination = "/topic/conversations/" + msg.getConversationId();
+                messagingTemplate.convertAndSend(destination, messageResponseDTO);
+            });
+        }
+    }
+
+    @Override
+    public void pinMessage(Integer messageId) {
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung hien tai!"));
+
+        Message messagePin = messageRepository.findById(messageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay tin nhan de ghim!"));
+        Integer conversationId = messagePin.getConversationId();
+
+        if (!conversationMemberRepository.existsByConversationIdAndUserId(conversationId, currentUser.getId())) {
+            throw new AccessDeniedException("Ban khong co quyen ghim tin nhan trong cuoc tro chuyen nay!");
+        }
+
+        //kiem tra tin nhan da duoc ghim chua
+        if (pinnedMessageRepository.existsByConversationIdAndMessageId(conversationId, messageId)) {
+            throw new BadRequestException("Tin nhan nay da duoc ghim");
+        }
+
+        PinnedMessage pinnedMessage = new PinnedMessage();
+        pinnedMessage.setConversationId(conversationId);
+        pinnedMessage.setMessageId(messageId);
+        pinnedMessage.setPinnedBy(currentUser.getId());
+        pinnedMessage.setPinnedAt(new Timestamp(System.currentTimeMillis()));
+        pinnedMessageRepository.save(pinnedMessage);
+        log.info("Nguoi dung ID {} da ghim tin nhan ID{} trong cuoc tro chuyen ID{}.",currentUser.getId(),messageId,conversationId);
+        //gui thong bao ws
+        String destination = "/topic/conversations/" + conversationId + "/pin";
+        MessageResponseDTO messageResponseDTO = messageMapper.toMessageResponseDTO(messagePin);
+        messagingTemplate.convertAndSend(destination, messageResponseDTO);
+    }
+
+    @Override
+    public List<MessageResponseDTO> getPinnedMessages(Integer conversationId) {
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung hien tai!"));
+        if (!conversationMemberRepository.existsByConversationIdAndUserId(conversationId, currentUser.getId())) {
+            throw new AccessDeniedException("Ban khong co quyen xem tin nhan duoc ghim cua cuoc tro chuyen nay!");
+        }
+        //lay danh sach tin nhan da ghim
+        List<PinnedMessage> pinnedMessages = pinnedMessageRepository.findByConversationIdOrderByPinnedAtDesc(conversationId);
+
+        List<Integer> messageIds = pinnedMessages.stream()
+                .map(PinnedMessage::getMessageId)
+                .collect(Collectors.toList());
+
+        return messageRepository.findAllById(messageIds).stream()
+                .map(messageMapper::toMessageResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public void unpinMessage(Integer messageId) {
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay nguoi dung hien tai!"));
+
+        Message messageToUnpin = messageRepository.findById(messageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay tin nhan de ghim!"));
+
+        Integer conversationId = messageToUnpin.getConversationId();
+
+        // kiem tra nguoi dung co phai thanh vien cuoc hoi thoai
+        ConversationMember member = conversationMemberRepository.findByConversationIdAndUserId(conversationId, currentUser.getId())
+                .orElseThrow(() -> new AccessDeniedException("ban khong co quyen bo ghim tin nhan trong cuoo hoi thoai nay"));
+
+        PinnedMessage pinnedMessage = pinnedMessageRepository.findByConversationIdAndMessageId(conversationId, messageId)
+                .orElseThrow(() -> new BadRequestException("Tin nhan nay chua duoc ghim!"));
+
+        // chi nguoi da ghim owner.
+        boolean isOwner = member.getRole() == MemberRole.OWNER;
+        boolean isAdmin = member.getRole() == MemberRole.ADMIN;
+        boolean isPinned = pinnedMessage.getPinnedBy().equals(currentUser.getId());
+
+        if (!isOwner && !isAdmin && !isPinned) {
+            throw new AccessDeniedException("Chỉ người ghim, quản trị viên hoặc chủ nhóm mới có quyền bỏ ghim.");
+        }
+
+        // xoab ban ghi ghim
+        pinnedMessageRepository.delete(pinnedMessage);
+        log.info("Nguoi dung ID {} da bo ghim tin nhan ID {} trong cuoc tro chuyen ID {}.", currentUser.getId(), messageId, conversationId);
+
+        // gui thong tin ws
+        String destination = "/topic/conversations/" + conversationId + "/unpin";
+        //gui di messageId de giao dien biet tin nhan nao da duoc bo ghim
+        messagingTemplate.convertAndSend(destination, java.util.Collections.singletonMap("messageId", messageId));
     }
 
 }

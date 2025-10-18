@@ -3,6 +3,7 @@ package com.example.project_chat.controller;
 import com.example.project_chat.dto.message.ConversationSummaryDTO;
 import com.example.project_chat.dto.message.MarkAsReadRequestDTO;
 import com.example.project_chat.dto.message.MessageResponseDTO;
+import com.example.project_chat.dto.notification.UpdateNotificationSettingsDTO;
 import com.example.project_chat.dto.response.ApiResponse;
 import com.example.project_chat.dto.response.ConversationHistoryDTO;
 import com.example.project_chat.service.ConversationService;
@@ -97,4 +98,27 @@ public class ConversationController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/{conversationId}/pinned")
+    public ResponseEntity<ApiResponse<List<MessageResponseDTO>>> getPinnedMessages(@PathVariable Integer conversationId) {
+        List<MessageResponseDTO> pinnedMessages = messageService.getPinnedMessages(conversationId);
+        ApiResponse<List<MessageResponseDTO>> response = new ApiResponse<>(
+                HttpStatus.OK.value(),
+                "Lay danh sach tin nhan da ghim thanh cong!",
+                pinnedMessages
+        );
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{conversationId}/notifications")
+    public ResponseEntity<ApiResponse<?>> updateNotificationSettings(
+            @PathVariable Integer conversationId,
+            @Valid @RequestBody UpdateNotificationSettingsDTO request) {
+        conversationService.updateNotificationSettings(conversationId, request);
+        String message = request.getEnableNotifications()
+                ? "Da bat thong bao cho cuoc tro chuyen."
+                : "Da tat thong bao cho cuoc tro chuyen.";
+
+        ApiResponse<?> response = new ApiResponse<>(HttpStatus.OK.value(), message, null);
+        return ResponseEntity.ok(response);
+    }
 }
