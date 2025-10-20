@@ -16,16 +16,17 @@ public class FileStorageServiceImpl implements FileStorageService {
     private static final Logger logger = LoggerFactory.getLogger(FileStorageServiceImpl.class);
     private final MinioClient minioClient;
     private final String bucketName;
-    private final String minioUrl;
+    private final String externalUrl; // Sửa tên biến này
 
     public FileStorageServiceImpl(MinioProperties minioProperties) {
         try {
             this.minioClient = MinioClient.builder()
-                    .endpoint(minioProperties.getUrl())
+                    .endpoint(minioProperties.getUrl()) // URL nội bộ để kết nối
                     .credentials(minioProperties.getAccessKey(), minioProperties.getSecretKey())
                     .build();
             this.bucketName = minioProperties.getBucketName();
-            this.minioUrl = minioProperties.getUrl();
+            // Lấy URL công khai để trả về cho client
+            this.externalUrl = minioProperties.getExternalUrl(); // Gán URL công khai
         } catch (Exception e) {
             logger.error("Lỗi nghiêm trọng khi khởi tạo MinioClient", e);
             throw new RuntimeException("Không thể khởi tạo MinioClient", e);
@@ -35,19 +36,10 @@ public class FileStorageServiceImpl implements FileStorageService {
     @Override
     public String uploadFile(MultipartFile file) {
         try {
-            logger.info("Bắt đầu quá trình tải file. Kiểm tra bucket: '{}'", bucketName);
-
-            // Kiem tra bucket
+            // (Phần logic kiểm tra bucket và tạo bucket giữ nguyên)
             boolean found = minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucketName).build());
-            logger.info("Bucket '{}' có tồn tại không? -> {}", bucketName, found);
-
             if (!found) {
-                logger.info("Bucket '{}' không tồn tại. Bắt đầu tạo mới...", bucketName);
-                // Tao bucket moi
                 minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucketName).build());
-                logger.info("Đã tạo bucket '{}' thành công.", bucketName);
-
-                // cai dat policy
                 String policyJson = createPublicReadPolicy(bucketName);
                 minioClient.setBucketPolicy(
                         SetBucketPolicyArgs.builder()
@@ -55,7 +47,6 @@ public class FileStorageServiceImpl implements FileStorageService {
                                 .config(policyJson)
                                 .build()
                 );
-                logger.info("Đã cài đặt policy public-read cho bucket '{}'.", bucketName);
             }
 
             String originalFilename = file.getOriginalFilename();
@@ -75,7 +66,8 @@ public class FileStorageServiceImpl implements FileStorageService {
             );
 
             logger.info("Đã tải file '{}' lên bucket '{}' thành công.", uniqueFileName, bucketName);
-            return minioUrl + "/" + bucketName + "/" + uniqueFileName;
+            // SỬA DÒNG NÀY: Dùng externalUrl để tạo đường dẫn trả về
+            return externalUrl + "/" + bucketName + "/" + uniqueFileName;
         } catch (Exception e) {
             logger.error("Lỗi nghiêm trọng trong quá trình tải file lên MinIO", e);
             throw new RuntimeException("Không thể tải file lên do lỗi server.", e);

@@ -1,0 +1,62 @@
+
+services:
+  # Dịch vụ 1: Backend App (Spring Boot của bạn)
+  app:
+    build: . # Yêu cầu Docker build image từ Dockerfile trong thư mục hiện tại
+    ports:
+      - "8080:8080" # Ánh xạ cổng 8080 của container ra cổng 8080 của máy bạn
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/project_chat
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=123456
+      - SPRING_REDIS_HOST=redis
+      - MINIO_URL=http://minio:9000             # URL nội bộ
+      - MINIO_EXTERNAL_URL=http://localhost:9000 # URL công khai
+    depends_on:
+      - db
+      - redis
+      - minio
+
+  # Dịch vụ 2: Database MySQL
+  db:
+    image: mysql:8.0
+    ports:
+      - "3307:3306" # Ánh xạ ra cổng 3307 trên máy bạn để tránh xung đột với MySQL local (3306)
+    environment:
+      - MYSQL_ROOT_PASSWORD=123456
+      - MYSQL_DATABASE=project_chat
+    volumes:
+      - mysql-data:/var/lib/mysql # Lưu dữ liệu DB ra ngoài để không bị mất khi container tắt
+
+  # Dịch vụ 3: Redis
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+  # Dịch vụ 4: MinIO
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000" # Cổng API
+      - "9001:9001" # Cổng giao diện web
+    volumes:
+      - minio-data:/data
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
+
+# Khai báo các "ổ đĩa ảo" để lưu trữ dữ liệu lâu dài
+volumes:
+  mysql-data:
+    name: mysql-data
+    external: true
+  redis-data:
+    name: ffd541bcfd343f0eb1121e4bd778184b65ceebda456776e37cb2541a3b8b0b9e
+    external: true
+  minio-data:
+    name: 2e6c819a4b97795af8344e777bff4b92a9c92535ab154e31533805f7643a7d08
+    external: true

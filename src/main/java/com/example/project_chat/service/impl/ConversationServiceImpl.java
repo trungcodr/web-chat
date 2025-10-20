@@ -23,6 +23,7 @@ import com.example.project_chat.service.ConversationService;
 import com.example.project_chat.service.FileStorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -42,13 +43,15 @@ public class ConversationServiceImpl implements ConversationService {
     private final ConversationMapper conversationMapper;
     private final FileStorageService fileStorageService;
     private final NotificationSettingsRepository notificationSettingsRepository;
-    public ConversationServiceImpl(ConversationRepository conversationRepository, ConversationMemberRepository conversationMemberRepository, UserRepository userRepository, ConversationMapper conversationMapper, FileStorageService fileStorageService, NotificationSettingsRepository notificationSettingsRepository) {
+    private final SimpMessagingTemplate messagingTemplate;
+    public ConversationServiceImpl(ConversationRepository conversationRepository, ConversationMemberRepository conversationMemberRepository, UserRepository userRepository, ConversationMapper conversationMapper, FileStorageService fileStorageService, NotificationSettingsRepository notificationSettingsRepository, SimpMessagingTemplate messagingTemplate) {
         this.conversationRepository = conversationRepository;
         this.conversationMemberRepository = conversationMemberRepository;
         this.userRepository = userRepository;
         this.conversationMapper = conversationMapper;
         this.fileStorageService = fileStorageService;
         this.notificationSettingsRepository = notificationSettingsRepository;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @Override
@@ -211,7 +214,13 @@ public class ConversationServiceImpl implements ConversationService {
         if (hasChange) {
             Conversation updatedGroup = conversationRepository.save(group);
             log.info("Da cap nhat thong tin cho nhom chat ID {}.",groupId);
-            return conversationMapper.toConversationSummaryDTO(updatedGroup, currentUser);
+            ConversationSummaryDTO updatedDto = conversationMapper.toConversationSummaryDTO(updatedGroup, currentUser);
+
+            String destination = "/topic/conversations/" + groupId + "/update";
+            messagingTemplate.convertAndSend(destination, updatedDto);
+            log.info("Da gui thong bao cap nhat nhom den topic: {}", destination);
+
+            return updatedDto;
         }
         return conversationMapper.toConversationSummaryDTO(group, currentUser);
 

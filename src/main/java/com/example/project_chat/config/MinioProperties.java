@@ -10,6 +10,7 @@ public class MinioProperties {
     private String accessKey;
     private String secretKey;
     private String bucketName;
+    private String externalUrl; // Thêm trường này
 
     public String getUrl() {
         return url;
@@ -41,5 +42,14 @@ public class MinioProperties {
 
     public void setBucketName(String bucketName) {
         this.bucketName = bucketName;
+    }
+
+    // --- Thêm getter và setter cho externalUrl ---
+    public String getExternalUrl() {
+        return externalUrl;
+    }
+
+    public void setExternalUrl(String externalUrl) {
+        this.externalUrl = externalUrl;
     }
 }

@@ -57,8 +57,7 @@ public class UserServiceImpl implements UserService {
             currentUser.setDateOfBirth(requestDTO.getDateOfBirth());
         }
         if (requestDTO.getAvatarFile() != null && !requestDTO.getAvatarFile().isEmpty()) {
-            String fileName = fileStorageService.uploadFile(requestDTO.getAvatarFile());
-            String avatarUrl = fileName;
+            String avatarUrl = fileStorageService.uploadFile(requestDTO.getAvatarFile());
             currentUser.setAvatarUrl(avatarUrl);
         }
         User updatedUser = userRepository.save(currentUser);

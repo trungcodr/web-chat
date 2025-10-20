@@ -16,6 +16,7 @@ import com.example.project_chat.repository.UserRepository;
 import com.example.project_chat.service.FriendService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,10 +30,13 @@ public class FriendServiceImpl implements FriendService {
     private final UserRepository userRepository;
     private final FriendRepository friendRepository;
     private final FriendMapper friendMapper;
-    public FriendServiceImpl(UserRepository userRepository, FriendRepository friendRepository, FriendMapper friendMapper) {
+    private final SimpMessagingTemplate messagingTemplate;
+    public FriendServiceImpl(UserRepository userRepository, FriendRepository friendRepository, FriendMapper friendMapper,
+                             SimpMessagingTemplate messagingTemplate) {
         this.userRepository = userRepository;
         this.friendRepository = friendRepository;
         this.friendMapper = friendMapper;
+        this.messagingTemplate = messagingTemplate;
     }
     @Override
     public void sendFriendRequest(FriendRequestDTO friendRequestDTO) {
@@ -59,8 +63,14 @@ public class FriendServiceImpl implements FriendService {
         newFriendRequest.setUserId(requester.getId());
         newFriendRequest.setFriendId(receiver.getId());
         newFriendRequest.setStatus(FriendStatus.PENDING);
-        friendRepository.save(newFriendRequest);
+        Friend savedRequest = friendRepository.save(newFriendRequest);
         logger.info("Nguoi dung ID {} da gui loi moi ket ban den nguoi dung ID {}",requester.getId(),receiver.getId());
+
+        FriendRequestResponseDTO notificationDto = friendMapper.toFriendRequestResponseDTO(savedRequest);
+
+        String destination = "/topic/users/" + receiver.getId() + "/friend-requests";
+        messagingTemplate.convertAndSend(destination, notificationDto);
+        logger.info("Da gui thong bao loi moi ket ban den topic: {}", destination);
     }
 
     @Override
@@ -91,6 +101,8 @@ public class FriendServiceImpl implements FriendService {
         if (friendRequest.getStatus() != FriendStatus.PENDING) {
             throw new BadRequestException("Loi moi nay da duoc tra loi truoc do");
         }
+
+        Integer senderId = friendRequest.getUserId();
         if (requestDTO.getStatus() == FriendStatus.ACCEPTED) {
             //cap nhat trang thai loi moi
             friendRequest.setStatus(FriendStatus.ACCEPTED);
@@ -108,6 +120,10 @@ public class FriendServiceImpl implements FriendService {
             logger.info("Nguoi dung ID {} da tu choi loi moi ket ban tu nguoi dung ID {}", currentUser.getId(), friendRequest.getUserId());
         }
 
+        var responsePayload = java.util.Collections.singletonMap("status", requestDTO.getStatus());
+        String destination = "/topic/users/" + senderId + "/friend-responses";
+        messagingTemplate.convertAndSend(destination, responsePayload);
+        logger.info("Da gui phan hoi loi moi ket ban den topic: {}", destination);
     }
 
     @Override
@@ -150,8 +166,13 @@ public class FriendServiceImpl implements FriendService {
         if (friendRequest.getStatus() != FriendStatus.PENDING) {
             throw new BadRequestException("Khong the thu hoi loi moi da duoc tra loi!");
         }
+        Integer receiverId = friendRequest.getFriendId();
         friendRepository.delete(friendRequest);
         logger.info("Nguoi dung ID {} da thu hoi loi moi ket ban ID {}", currentUser.getId(), requestId);
+        var payload = java.util.Collections.singletonMap("requestId", requestId);
+        String destination = "/topic/users/" + receiverId + "/friend-requests/cancel";
+        messagingTemplate.convertAndSend(destination, payload);
+        logger.info("Da gui thong bao huy loi moi ket ban den topic: {}", destination);
     }
 
     @Override
@@ -170,6 +191,11 @@ public class FriendServiceImpl implements FriendService {
             logger.warn("Khong tim moi quan he giua hai nguoi dung ID {} va nguoi dung ID {}", currentUser.getId(), friendId);
             throw new BadRequestException("Ban khong phai la ban be voi nguoi dung nay!");
         }
+
+        var payload = java.util.Collections.singletonMap("unfriendedBy", currentUser.getId());
+        String destination = "/topic/users/" + friendId + "/unfriended";
+        messagingTemplate.convertAndSend(destination, payload);
+        logger.info("Da gui thong bao huy ket ban den topic: {}", destination);
     }
 
 
