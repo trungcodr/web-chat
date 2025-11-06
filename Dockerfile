@@ -1,34 +1,44 @@
-# Giai đoạn 1: Build ứng dụng bằng Maven
-# Sử dụng một image có sẵn Java 17 và Maven để biên dịch code
-FROM maven:3.8.5-openjdk-17 AS build
+# ----------------------------------------------------
+# GIAI ĐOẠN 1: BUILDER (Dùng JDK để Build file JAR)
+# ----------------------------------------------------
+# Sử dụng Eclipse Temurin (Java 17 JDK) trên Ubuntu Jammy (22.04 LTS)
+FROM eclipse-temurin:17-jdk-jammy AS builder
 
-# Đặt thư mục làm việc bên trong container là /app
+# Thiết lập thư mục làm việc trong container
 WORKDIR /app
 
-# Sao chép file pom.xml vào trước để tận dụng cache của Docker, giúp build nhanh hơn ở các lần sau
+RUN apt-get update && \
+    apt-get install -y maven && \
+    rm -rf /var/lib/apt/lists/*
+
+# Sao chép file cấu hình Maven (pom.xml)
 COPY pom.xml .
 
-# Tải tất cả các thư viện cần thiết
-RUN mvn dependency:go-offline
+# Lấy dependencies (sử dụng cache để build nhanh hơn ở các lần sau)
+RUN --mount=type=cache,target=/root/.m2 mvn dependency:go-offline
 
-# Sao chép toàn bộ mã nguồn còn lại của bạn vào
-COPY src ./src
+# Sao chép toàn bộ mã nguồn
+COPY src /app/src
 
-# Build ứng dụng, tạo ra file .jar và bỏ qua các bài test
-RUN mvn clean package -DskipTests
+# Build ứng dụng, tạo file JAR (bỏ qua tests)
+RUN mvn clean install -DskipTests
 
-# Giai đoạn 2: Tạo image cuối cùng để chạy ứng dụng
-# Sử dụng một image Java 17 nhẹ hơn (slim) để tiết kiệm dung lượng
-FROM openjdk:17-jdk-slim
+# ----------------------------------------------------
+# GIAI ĐOẠN 2: RUNTIME (Dùng JRE để Chạy file JAR)
+# ----------------------------------------------------
+# Sử dụng JRE (Java 17 JRE) trên Ubuntu Jammy (nhỏ gọn hơn và chỉ chạy)
+FROM eclipse-temurin:17-jre-jammy
 
-# Đặt thư mục làm việc
-WORKDIR /app
+# Thiết lập múi giờ
+ENV TZ Asia/Ho_Chi_Minh
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-# Sao chép file .jar đã được build ở giai đoạn trên vào image này
-COPY --from=build /app/target/project_chat-0.0.1-SNAPSHOT.jar app.jar
+# Sao chép file JAR đã build từ giai đoạn builder
+# Tên file JAR được giả định là tên project (vd: project_chat-0.0.1-SNAPSHOT.jar)
+COPY --from=builder /app/target/*.jar app.jar
 
-# Mở cổng 8080 để bên ngoài có thể giao tiếp với ứng dụng của bạn
+# Cổng TCP mà Spring Boot sử dụng
 EXPOSE 8080
 
-# Lệnh mặc định sẽ được chạy khi container khởi động
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Chỉ định lệnh chạy ứng dụng (ENTRYPOINT)
+ENTRYPOINT ["java", "-jar", "/app.jar"]

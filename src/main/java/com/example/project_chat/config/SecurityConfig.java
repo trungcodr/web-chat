@@ -42,7 +42,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests((authorize) ->
                         authorize
                                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                                .requestMatchers(  "/api/auth/login",
+
+                                .requestMatchers( "/",
+                                        "/api/auth/login",
                                         "/api/auth/register",
                                         "/api/auth/register/verify",
                                         "/api/auth/register/password",
@@ -50,6 +52,7 @@ public class SecurityConfig {
                                         "/api/auth/verify-reset-otp",
                                         "/api/auth/reset-password",
                                         "/api/auth/refresh-token",
+                                        "/api/auth/logout",
                                         "/swagger-ui/**",
                                         "/v3/api-docs/**",
                                         "/ws/**").permitAll()
